@@ -155,20 +155,6 @@ function formatCompactCurrency(value, decimals = 1) {
   })}`;
 }
 
-function formatDateRange(start, end) {
-  const options = {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "America/Chicago",
-  };
-
-  const startDate = new Date(`${start}T12:00:00`);
-  const endDate = new Date(`${end}T12:00:00`);
-
-  return `${startDate.toLocaleDateString("en-US", options)} – ${endDate.toLocaleDateString("en-US", options)}`;
-}
-
 async function getDashboardData() {
   const tokenData = await getSalesforceToken();
   const windows = getDateWindows();
@@ -233,366 +219,306 @@ app.get("/api/summary", async (req, res) => {
 });
 
 app.get("/", async (req, res) => {
+  return renderClosedProductionPage(req, res);
+});
+
+app.get("/closed-production", async (req, res) => {
+  return renderClosedProductionPage(req, res);
+});
+
+async function renderClosedProductionPage(req, res) {
   try {
-    const { generatedAt, current, prior, comparison } = await getDashboardData();
+    const { current, prior, comparison } = await getDashboardData();
 
     res.send(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Trinity Office Display</title>
+          <title>Trinity Closed Transactions</title>
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <meta http-equiv="refresh" content="300" />
+          <meta http-equiv="refresh" content="900" />
           <style>
             :root {
               --navy: #15445B;
               --blue: #4E92C7;
               --spring: #BFDBBB;
-              --sage: #6E8B7A;
               --bone: #F4F1EC;
               --offwhite: #FEFAF6;
               --black: #02070A;
+              --red: #ff624f;
             }
 
             * {
               box-sizing: border-box;
             }
 
+            html,
             body {
               margin: 0;
-              min-height: 100vh;
-              background:
-                radial-gradient(circle at top right, rgba(78, 146, 199, 0.24), transparent 32%),
-                linear-gradient(135deg, #02070A 0%, #061924 45%, #02070A 100%);
-              color: var(--bone);
-              font-family: Arial, Helvetica, sans-serif;
-              overflow: auto;
-            }
-
-            .page {
               width: 100%;
-              min-height: 100vh;
-              padding: clamp(18px, 2.6vw, 44px) clamp(22px, 3.5vw, 56px);
-              display: flex;
-              flex-direction: column;
-              gap: clamp(16px, 2vw, 34px);
+              height: 100%;
+              overflow: hidden;
+              background: #02070A;
+              color: var(--offwhite);
+              font-family: Arial, Helvetica, sans-serif;
             }
 
-            .topbar {
-              display: flex;
+            body {
+              background:
+                radial-gradient(circle at 85% 10%, rgba(78, 146, 199, 0.22), transparent 30%),
+                radial-gradient(circle at 12% 92%, rgba(191, 219, 187, 0.12), transparent 28%),
+                linear-gradient(135deg, #02070A 0%, #061924 48%, #02070A 100%);
+            }
+
+            .screen {
+              width: 100vw;
+              height: 100vh;
+              padding: 3.2vh 3vw 3vh;
+              display: grid;
+              grid-template-rows: 12.5vh 1fr 20vh;
+              gap: 2.7vh;
+            }
+
+            .header {
+              display: grid;
+              grid-template-columns: 1fr auto;
               align-items: center;
-              justify-content: space-between;
-              border-bottom: 1px solid rgba(244, 241, 236, 0.35);
-              padding-bottom: clamp(14px, 1.8vw, 28px);
-              gap: 24px;
+              border-bottom: 0.22vh solid rgba(244, 241, 236, 0.34);
+              padding-bottom: 2.1vh;
             }
 
             .brand {
               display: flex;
               align-items: center;
-              gap: clamp(14px, 1.6vw, 26px);
+              gap: 1.35vw;
             }
 
             .logo-mark {
-              width: clamp(52px, 5.4vw, 86px);
-              height: clamp(52px, 5.4vw, 86px);
-              border: 3px solid var(--blue);
+              width: 7.3vh;
+              height: 7.3vh;
+              border: 0.36vh solid var(--blue);
               border-radius: 999px;
               display: flex;
               align-items: center;
               justify-content: center;
               color: var(--blue);
-              font-size: clamp(34px, 3.7vw, 58px);
-              font-weight: 700;
+              font-size: 4.9vh;
+              font-weight: 900;
             }
 
             .brand-divider {
-              width: 2px;
-              height: clamp(58px, 6vw, 94px);
+              width: 0.18vw;
+              height: 8.8vh;
               background: linear-gradient(to bottom, var(--blue), var(--spring));
-              opacity: 0.8;
             }
 
             .brand-name {
-              font-size: clamp(36px, 4.8vw, 74px);
-              letter-spacing: clamp(10px, 1.5vw, 24px);
+              font-size: 5.7vh;
+              letter-spacing: 1.35vw;
               font-weight: 500;
               color: var(--bone);
+              white-space: nowrap;
             }
 
-            .updated {
+            .page-title {
               text-align: right;
               text-transform: uppercase;
-              letter-spacing: 3px;
-              flex-shrink: 0;
-            }
-
-            .updated-label,
-            .updated-date {
+              letter-spacing: 0.55vw;
+              font-size: 3.4vh;
+              font-weight: 900;
               color: var(--spring);
-              font-size: clamp(13px, 1.2vw, 20px);
-              font-weight: 700;
+              white-space: nowrap;
             }
 
-            .updated-time {
-              font-size: clamp(24px, 2.4vw, 38px);
-              margin-top: 6px;
-              color: var(--offwhite);
-            }
-
-            .title {
-              text-align: center;
-              font-size: clamp(32px, 4vw, 56px);
-              letter-spacing: clamp(4px, 0.7vw, 9px);
-              font-weight: 800;
-              color: var(--offwhite);
-              text-transform: uppercase;
-            }
-
-            .title span {
-              color: var(--spring);
-            }
-
-            .grid {
+            .main {
               display: grid;
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-              gap: clamp(18px, 2.2vw, 34px);
-              flex: 1;
+              grid-template-columns: 1fr 1fr;
+              gap: 3vw;
+              min-height: 0;
             }
 
-            .panel {
-              border: 1px solid rgba(78, 146, 199, 0.75);
-              border-radius: 18px;
+            .column {
+              border: 0.18vh solid rgba(78, 146, 199, 0.85);
+              border-radius: 1.8vh;
+              background: rgba(2, 7, 10, 0.67);
               overflow: hidden;
-              background: rgba(2, 7, 10, 0.68);
-              box-shadow: 0 0 44px rgba(78, 146, 199, 0.14);
+              display: grid;
+              grid-template-rows: 10.3vh 1fr;
+              box-shadow: 0 0 4.2vh rgba(78, 146, 199, 0.18);
             }
 
-            .panel-header {
-              background: linear-gradient(90deg, rgba(21, 68, 91, 0.96), rgba(78, 146, 199, 0.72));
-              padding: clamp(18px, 1.9vw, 28px) clamp(22px, 2.4vw, 36px);
+            .column-header {
+              background: linear-gradient(90deg, rgba(21, 68, 91, 0.95), rgba(78, 146, 199, 0.76));
+              display: flex;
+              align-items: center;
+              justify-content: center;
               text-align: center;
             }
 
             .period {
-              font-size: clamp(32px, 3.6vw, 48px);
-              letter-spacing: 4px;
-              font-weight: 800;
+              font-size: 5.2vh;
+              letter-spacing: 0.45vw;
+              font-weight: 900;
               color: var(--offwhite);
-            }
-
-            .range {
-              margin-top: 8px;
-              font-size: clamp(14px, 1.4vw, 22px);
-              letter-spacing: 3px;
               text-transform: uppercase;
-              color: var(--spring);
-              font-weight: 700;
             }
 
             .metrics {
-              padding: clamp(12px, 1.7vw, 24px) clamp(20px, 2.4vw, 38px);
+              display: grid;
+              grid-template-rows: repeat(3, 1fr);
+              padding: 2vh 2.3vw 2.2vh;
             }
 
             .metric {
               display: grid;
-              grid-template-columns: clamp(58px, 6vw, 110px) 1fr clamp(96px, 9vw, 150px);
+              grid-template-columns: 1fr auto;
               align-items: center;
-              gap: clamp(12px, 1.5vw, 24px);
-              min-height: clamp(96px, 11vh, 150px);
-              border-bottom: 1px solid rgba(244, 241, 236, 0.28);
+              border-bottom: 0.18vh solid rgba(244, 241, 236, 0.31);
+              min-height: 0;
+              column-gap: 1.8vw;
             }
 
             .metric:last-child {
               border-bottom: none;
             }
 
-            .icon {
-              width: clamp(52px, 5.2vw, 82px);
-              height: clamp(52px, 5.2vw, 82px);
-              border: 3px solid var(--blue);
-              border-radius: 999px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: clamp(28px, 3vw, 42px);
-              color: var(--blue);
-            }
-
-            .metric:nth-child(1) .icon,
-            .metric:nth-child(3) .icon {
-              border-color: var(--spring);
-              color: var(--spring);
-            }
-
-            .metric-label {
-              color: var(--spring);
-              font-size: clamp(15px, 1.45vw, 23px);
-              text-transform: uppercase;
-              letter-spacing: 3px;
-              font-weight: 800;
-              margin-bottom: 8px;
-            }
-
-            .metric:nth-child(2) .metric-label {
-              color: var(--blue);
-            }
-
-            .metric-value {
-              font-size: clamp(36px, 4.5vw, 64px);
-              line-height: 1;
-              font-weight: 800;
+            .value {
+              font-size: 10.1vh;
+              line-height: 0.9;
+              font-weight: 900;
               color: var(--offwhite);
-              text-shadow: 0 3px 12px rgba(0,0,0,0.45);
+              letter-spacing: -0.18vw;
+              white-space: nowrap;
+              text-shadow: 0 0.4vh 1.4vh rgba(0, 0, 0, 0.55);
+              justify-self: center;
+            }
+
+            .label {
+              font-size: 3.1vh;
+              letter-spacing: 0.16vw;
+              font-weight: 900;
+              text-transform: uppercase;
+              color: var(--spring);
+              white-space: nowrap;
+              justify-self: start;
+            }
+
+            .metric.volume .label {
+              color: var(--blue);
+            }
+
+            .comparison {
+              border: 0.18vh solid rgba(244, 241, 236, 0.36);
+              border-radius: 1.6vh;
+              background: rgba(2, 7, 10, 0.54);
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              overflow: hidden;
+            }
+
+            .comparison-card {
+              position: relative;
+              display: grid;
+              grid-template-rows: 1fr auto;
+              align-items: center;
+              justify-items: center;
+              border-right: 0.18vh solid rgba(244, 241, 236, 0.28);
+              padding: 2.5vh 1vw 2.3vh;
+            }
+
+            .comparison-card:last-child {
+              border-right: none;
+            }
+
+            .comparison-card.up::after {
+              content: "";
+              position: absolute;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              height: 0.35vh;
+              background: linear-gradient(90deg, transparent, rgba(191, 219, 187, 0.95), transparent);
+            }
+
+            .comparison-card.down::after {
+              content: "";
+              position: absolute;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              height: 0.35vh;
+              background: linear-gradient(90deg, transparent, rgba(255, 98, 79, 0.95), transparent);
+            }
+
+            .comparison-value {
+              font-size: 6.7vh;
+              line-height: 1;
+              font-weight: 900;
               white-space: nowrap;
             }
 
-            .delta {
-              border-left: 1px solid rgba(244, 241, 236, 0.35);
-              padding-left: clamp(12px, 1.5vw, 24px);
-              text-align: center;
-            }
-
-            .delta-value {
-              font-size: clamp(18px, 1.8vw, 29px);
-              font-weight: 800;
-            }
-
-            .delta-up {
+            .comparison-value.up {
               color: var(--spring);
             }
 
-            .delta-down {
-              color: #ff725f;
+            .comparison-value.down {
+              color: var(--red);
             }
 
-            .delta-context {
-              font-size: clamp(12px, 1vw, 17px);
-              margin-top: 5px;
-              color: rgba(244, 241, 236, 0.78);
-            }
-
-            .prior .metric {
-              grid-template-columns: clamp(58px, 6vw, 110px) 1fr;
-            }
-
-            .prior .delta {
-              display: none;
-            }
-
-            .footer {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              border: 1px solid rgba(244, 241, 236, 0.35);
-              border-radius: 14px;
-              padding: clamp(14px, 1.5vw, 22px) clamp(18px, 2vw, 30px);
-              color: var(--spring);
+            .comparison-label {
+              margin-top: 1vh;
+              font-size: 2.4vh;
+              letter-spacing: 0.25vw;
+              color: var(--offwhite);
               text-transform: uppercase;
-              letter-spacing: 4px;
-              font-size: clamp(13px, 1.25vw, 20px);
-              font-weight: 700;
-              gap: 18px;
-            }
-
-            .footer-right {
-              color: var(--bone);
-              text-align: right;
-            }
-
-            .footer-right span {
-              color: var(--blue);
-            }
-
-            @media (max-width: 1050px) {
-              .grid {
-                grid-template-columns: 1fr;
-              }
-
-              .topbar {
-                align-items: flex-start;
-              }
-
-              .brand-name {
-                letter-spacing: 10px;
-              }
-
-              .footer {
-                flex-direction: column;
-                align-items: flex-start;
-              }
-
-              .footer-right {
-                text-align: left;
-              }
+              font-weight: 900;
+              white-space: nowrap;
             }
           </style>
         </head>
 
         <body>
-          <main class="page">
-            <section class="topbar">
+          <main class="screen">
+            <section class="header">
               <div class="brand">
                 <div class="logo-mark">T</div>
                 <div class="brand-divider"></div>
                 <div class="brand-name">TRINITY</div>
               </div>
 
-              <div class="updated">
-                <div class="updated-label">Last Updated</div>
-                <div class="updated-time">
-                  ${generatedAt.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    timeZone: "America/Chicago",
-                  })}
-                </div>
-                <div class="updated-date">
-                  ${generatedAt.toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                    timeZone: "America/Chicago",
-                  })}
-                </div>
-              </div>
+              <div class="page-title">Closed Transactions</div>
             </section>
 
-            <section class="title">
-              Year To Date <span>Performance</span>
-            </section>
-
-            <section class="grid">
-              <section class="panel current">
-                <div class="panel-header">
+            <section class="main">
+              <section class="column">
+                <div class="column-header">
                   <div class="period">${current.label}</div>
-                  <div class="range">${formatDateRange(current.start, current.end)}</div>
                 </div>
 
                 <div class="metrics">
-                  ${renderMetric("👥", "Closed Deals", current.closedDeals.toLocaleString("en-US"), comparison.closedDealsPct)}
-                  ${renderMetric("＄", "Closed Volume", formatCompactCurrency(current.closedVolume, 1), comparison.closedVolumePct)}
-                  ${renderMetric("T", "Closed GCI", formatCompactCurrency(current.closedGci, 2), comparison.closedGciPct)}
+                  ${renderTvMetric("Deals", current.closedDeals.toLocaleString("en-US"), "deals")}
+                  ${renderTvMetric("Volume", formatCompactCurrency(current.closedVolume, 1), "volume")}
+                  ${renderTvMetric("GCI", formatCompactCurrency(current.closedGci, 2), "gci")}
                 </div>
               </section>
 
-              <section class="panel prior">
-                <div class="panel-header">
+              <section class="column">
+                <div class="column-header">
                   <div class="period">${prior.label}</div>
-                  <div class="range">${formatDateRange(prior.start, prior.end)}</div>
                 </div>
 
                 <div class="metrics">
-                  ${renderMetric("👥", "Closed Deals", prior.closedDeals.toLocaleString("en-US"), null)}
-                  ${renderMetric("＄", "Closed Volume", formatCompactCurrency(prior.closedVolume, 1), null)}
-                  ${renderMetric("T", "Closed GCI", formatCompactCurrency(prior.closedGci, 2), null)}
+                  ${renderTvMetric("Deals", prior.closedDeals.toLocaleString("en-US"), "deals")}
+                  ${renderTvMetric("Volume", formatCompactCurrency(prior.closedVolume, 1), "volume")}
+                  ${renderTvMetric("GCI", formatCompactCurrency(prior.closedGci, 2), "gci")}
                 </div>
               </section>
             </section>
 
-            <section class="footer">
-              <div>Data refreshes every 5 minutes</div>
-              <div class="footer-right"><span>Better People.</span> Better Service. Better Results.</div>
+            <section class="comparison">
+              ${renderComparison("# of Deals vs Prior", comparison.closedDealsPct)}
+              ${renderComparison("Volume vs Prior", comparison.closedVolumePct)}
+              ${renderComparison("GCI vs Prior", comparison.closedGciPct)}
             </section>
           </main>
         </body>
@@ -604,34 +530,30 @@ app.get("/", async (req, res) => {
       <pre>${error.message}</pre>
     `);
   }
-});
+}
 
-function renderMetric(icon, label, value, delta) {
-  let deltaHtml = "";
+function renderTvMetric(label, value, type) {
+  return `
+    <div class="metric ${type}">
+      <div class="value">${value}</div>
+      <div class="label">${label}</div>
+    </div>
+  `;
+}
 
-  if (typeof delta === "number") {
-    const isUp = delta >= 0;
-    const arrow = isUp ? "▲" : "▼";
-    const className = isUp ? "delta-up" : "delta-down";
-
-    deltaHtml = `
-      <div class="delta">
-        <div class="delta-value ${className}">
-          ${arrow} ${Math.abs(delta).toFixed(1)}%
-        </div>
-        <div class="delta-context">vs prior</div>
-      </div>
-    `;
-  }
+function renderComparison(label, delta) {
+  const isValid = typeof delta === "number";
+  const isUp = isValid ? delta >= 0 : true;
+  const arrow = !isValid ? "—" : isUp ? "▲" : "▼";
+  const className = isUp ? "up" : "down";
+  const displayValue = !isValid ? "" : `${Math.abs(delta).toFixed(1)}%`;
 
   return `
-    <div class="metric">
-      <div class="icon">${icon}</div>
-      <div>
-        <div class="metric-label">${label}</div>
-        <div class="metric-value">${value}</div>
+    <div class="comparison-card ${className}">
+      <div class="comparison-value ${className}">
+        ${arrow} ${displayValue}
       </div>
-      ${deltaHtml}
+      <div class="comparison-label">${label}</div>
     </div>
   `;
 }
