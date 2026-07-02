@@ -42,7 +42,38 @@ async function querySalesforce(instanceUrl, accessToken, soql) {
   return data;
 }
 
+async function querySalesforceAll(instanceUrl, accessToken, soql) {
+  const firstPage = await querySalesforce(instanceUrl, accessToken, soql);
+  const records = [...(firstPage.records || [])];
+
+  let nextRecordsUrl = firstPage.nextRecordsUrl;
+
+  while (nextRecordsUrl) {
+    const response = await fetch(`${instanceUrl}${nextRecordsUrl}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(JSON.stringify(data));
+    }
+
+    records.push(...(data.records || []));
+    nextRecordsUrl = data.nextRecordsUrl;
+  }
+
+  return {
+    ...firstPage,
+    records,
+    totalSize: records.length,
+    done: true,
+    nextRecordsUrl: null
+  };
+}
+
 module.exports = {
   getSalesforceToken,
   querySalesforce,
+  querySalesforceAll,
 };

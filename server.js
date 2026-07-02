@@ -1,6 +1,8 @@
 require("dotenv").config();
 
 const express = require("express");
+const { getIndividualPerformanceData } = require("./data/individualPerformance");
+const { renderIndividualPerformancePage } = require("./pages/individualPerformance");
 
 const { buildClosedTransactionsDashboard } = require("./data/closedTransactions");
 const { renderClosedTransactionsPage } = require("./pages/closedTransactions");
@@ -13,6 +15,31 @@ const PORT = process.env.PORT || 3000;
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+app.get("/api/individual-performance", async (req, res) => {
+  try {
+    const data = await getIndividualPerformanceData();
+    res.json(data);
+  } catch (error) {
+    console.error("Individual performance error:", error);
+    res.status(500).json({
+      error: "Failed to load individual performance data",
+      message: error.message
+    });
+  }
+});
+
+app.get("/individual-performance", async (req, res) => {
+  try {
+    const dashboard = await getIndividualPerformanceData();
+    res.send(renderIndividualPerformancePage(dashboard));
+  } catch (error) {
+    res.status(500).send(`
+      <h1>Individual Performance Dashboard Error</h1>
+      <pre>${error.message}</pre>
+    `);
+  }
 });
 
 app.get("/api/summary", async (req, res) => {
