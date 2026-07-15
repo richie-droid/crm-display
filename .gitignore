@@ -1,2 +1,39 @@
-node_modules/
 .env
+.env.*
+node_modules/
+crexi-collector/node_modules/
+crexi-collector/.env
+crexi-collector/chrome-profile/
+storage/data/metric-snapshots.json
+storage/data/metric-snapshots-backup.json
+
+# Local archives / backups
+archive/
+archives/
+_archive/
+backup/
+backups/
+
+# Node dependencies
+node_modules/
+crexi-collector/node_modules/
+
+# Crexi browser profile and cache
+crexi-collector/browser-profile/
+crexi-collector/.cache/
+crexi-collector/cache/
+crexi-collector/playwright-report/
+crexi-collector/test-results/
+
+# Environment files
+.env
+.env.*
+crexi-collector/.env
+
+# Local metric data
+storage/data/metric-snapshots.json
+storage/data/metric-snapshots-backup.json
+
+# Logs
+*.log
+npm-debug.log*

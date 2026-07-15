@@ -1,0 +1,12 @@
+{
+  "name": "trinity-crexi-collector",
+  "private": true,
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "install-browser": "playwright install chromium",
+    "login": "node collector.js --login",
+    "collect": "node collector.js"
+  },
+  "dependencies": { "dotenv": "^17.4.2", "playwright": "^1.54.1" }
+}
