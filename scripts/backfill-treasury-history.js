@@ -34,7 +34,9 @@ function parseDate(value) {
     Date.UTC(year, month - 1, day, 12, 0, 0)
   );
 
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
 }
 
 function parseCsvLine(line) {
@@ -108,7 +110,8 @@ async function fetchTreasuryYear(year) {
 
   const fiveYearIndex = headers.findIndex(
     (header) =>
-      header === "5 yr" || header === "5 year"
+      header === "5 yr" ||
+      header === "5 year"
   );
 
   if (dateIndex < 0 || fiveYearIndex < 0) {
@@ -122,7 +125,6 @@ async function fetchTreasuryYear(year) {
     .slice(1)
     .map((line) => {
       const values = parseCsvLine(line);
-
       const date = parseDate(values[dateIndex]);
 
       const rate = Number(
@@ -143,15 +145,15 @@ async function fetchTreasuryYear(year) {
     .filter(Boolean);
 }
 
-async function main() {
-  const requestedDays = Number(
-    process.argv[2] || DEFAULT_DAYS
-  );
+async function backfillTreasuryHistory(
+  requestedDays = DEFAULT_DAYS
+) {
+  const days = Number(requestedDays);
 
   if (
-    !Number.isInteger(requestedDays) ||
-    requestedDays < 1 ||
-    requestedDays > 3650
+    !Number.isInteger(days) ||
+    days < 1 ||
+    days > 3650
   ) {
     throw new Error(
       "Days must be a whole number between 1 and 3650"
@@ -159,11 +161,10 @@ async function main() {
   }
 
   const now = new Date();
-
   const cutoff = new Date(now);
 
   cutoff.setUTCDate(
-    cutoff.getUTCDate() - requestedDays
+    cutoff.getUTCDate() - days
   );
 
   cutoff.setUTCHours(0, 0, 0, 0);
@@ -176,19 +177,27 @@ async function main() {
   const observations = [];
 
   for (const year of [...years].sort()) {
-    const yearRows = await fetchTreasuryYear(year);
+    const yearRows =
+      await fetchTreasuryYear(year);
 
     observations.push(...yearRows);
   }
 
   const selected = observations
-    .filter(({ date }) => date >= cutoff && date <= now)
-    .sort((a, b) => a.date - b.date);
+    .filter(
+      ({ date }) =>
+        date >= cutoff &&
+        date <= now
+    )
+    .sort(
+      (a, b) =>
+        a.date - b.date
+    );
 
   if (!selected.length) {
     throw new Error(
       `No valid 5-year Treasury observations found ` +
-        `in the last ${requestedDays} days`
+        `in the last ${days} days`
     );
   }
 
@@ -196,26 +205,53 @@ async function main() {
     saveSnapshot({
       metricKey: METRIC_KEY,
       value: observation.value,
-      capturedAt: observation.date.toISOString(),
+      capturedAt:
+        observation.date.toISOString(),
       source: "us_treasury_backfill",
     });
   }
 
-  console.log(
-    `Imported ${selected.length} five-year Treasury ` +
-      `observations from ` +
-      `${selected[0].date.toISOString().slice(0, 10)} ` +
-      `through ` +
-      `${selected[selected.length - 1].date
+  return {
+    metricKey: METRIC_KEY,
+    imported: selected.length,
+    firstDate:
+      selected[0].date
         .toISOString()
-        .slice(0, 10)}.`
+        .slice(0, 10),
+    lastDate:
+      selected[selected.length - 1].date
+        .toISOString()
+        .slice(0, 10),
+  };
+}
+
+async function main() {
+  const requestedDays = Number(
+    process.argv[2] || DEFAULT_DAYS
+  );
+
+  const result =
+    await backfillTreasuryHistory(
+      requestedDays
+    );
+
+  console.log(
+    `Imported ${result.imported} five-year Treasury ` +
+      `observations from ${result.firstDate} ` +
+      `through ${result.lastDate}.`
   );
 }
 
-main().catch((error) => {
-  console.error(
-    `Treasury backfill failed: ${error.message}`
-  );
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(
+      `Treasury backfill failed: ${error.message}`
+    );
 
-  process.exitCode = 1;
-});
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  backfillTreasuryHistory,
+};
