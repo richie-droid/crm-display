@@ -10,6 +10,7 @@ const FIELDS = {
   stageName: "Name",
   startDate: "TTL_Core__Start_Date__c",
   endDate: "TTL_Core__End_Date__c",
+  dateOnMarket: "first_eblast_date__c",
 };
 
 const STAGES = {
@@ -80,7 +81,6 @@ function getCohortWindows(now = new Date()) {
   const priorEnd = currentStart;
 
   return {
-    dataThrough: today,
     current: {
       label: "Current Cohort",
       start: currentStart,
@@ -148,6 +148,9 @@ function groupTrackerRecords(records) {
         dealName:
           record.TTL_Core__Deal__r?.Name ||
           "Unnamed Deal",
+        dateOnMarket: parseDate(
+          record.TTL_Core__Deal__r?.[FIELDS.dateOnMarket]
+        ),
         trackerRows: [],
       });
     }
@@ -165,17 +168,17 @@ function groupTrackerRecords(records) {
 }
 
 function deriveDealOutcome(deal) {
+  const onMarketDate = deal.dateOnMarket;
+
+  if (!onMarketDate) {
+    return null;
+  }
+
   const onMarketRows = deal.trackerRows
     .filter(
       (row) => row.stageName === STAGES.onMarket
     )
     .sort((a, b) => a.startDate - b.startDate);
-
-  if (!onMarketRows.length) {
-    return null;
-  }
-
-  const onMarketDate = onMarketRows[0].startDate;
 
   const closeRows = deal.trackerRows
     .filter(
@@ -306,16 +309,17 @@ async function buildListingOutcomesDashboard() {
       Id,
       ${FIELDS.dealId},
       TTL_Core__Deal__r.Name,
+      TTL_Core__Deal__r.${FIELDS.dateOnMarket},
       ${FIELDS.stageName},
       ${FIELDS.startDate},
       ${FIELDS.endDate}
     FROM ${TRACKER_OBJECT}
     WHERE
-      ${FIELDS.startDate} >= ${formatSoqlDate(
+      TTL_Core__Deal__r.${FIELDS.dateOnMarket} >= ${formatSoqlDate(
         windows.prior.start
       )}
-      AND ${FIELDS.startDate} <= ${formatSoqlDate(
-        windows.dataThrough
+      AND TTL_Core__Deal__r.${FIELDS.dateOnMarket} < ${formatSoqlDate(
+        windows.current.endExclusive
       )}
       AND ${FIELDS.stageName} IN (
         ${relevantStages}
@@ -353,9 +357,7 @@ async function buildListingOutcomesDashboard() {
 
   return {
     generatedAt: new Date().toISOString(),
-    dataThrough: formatSoqlDate(
-      windows.dataThrough
-    ),
+    dataThrough: new Date().toISOString().slice(0, 10),
     trackerRecordCount:
       result.records?.length || 0,
     uniqueDealCount: groupedDeals.size,
