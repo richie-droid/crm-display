@@ -14,6 +14,8 @@ const {
   getMarketStatisticsData,
 } = require("./data/marketStatistics");
 const { renderMarketStatisticsPage } = require("./pages/marketStatistics");
+const { buildListingOutcomesDashboard } = require("./data/listingOutcomes");
+const { renderListingOutcomesPage } = require("./pages/listingOutcomes");
 const { saveSnapshot, saveAttempt } = require("./storage/metricStore");
 const { seedMetricHistory } = require("./storage/seedMetricHistory");
 
@@ -108,6 +110,22 @@ app.get("/api/test-listings", async (req, res) => {
       ...(await buildListingsDashboard()),
     });
   } catch (error) {
+    res.status(500).json({
+      ok: false,
+      message: error.message,
+    });
+  }
+});
+
+app.get("/api/listing-outcomes", async (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      ...(await buildListingOutcomesDashboard()),
+    });
+  } catch (error) {
+    console.error("Listing outcomes error:", error);
+
     res.status(500).json({
       ok: false,
       message: error.message,
@@ -255,6 +273,24 @@ app.get("/listings", async (req, res) => {
       .status(500)
       .send(
         `<h1>Marketing Snapshot Dashboard Error</h1><pre>${error.message}</pre>`
+      );
+  }
+});
+
+app.get("/listing-outcomes", async (req, res) => {
+  try {
+    res.send(
+      renderListingOutcomesPage(
+        await buildListingOutcomesDashboard()
+      )
+    );
+  } catch (error) {
+    console.error("Listing outcomes page error:", error);
+
+    res
+      .status(500)
+      .send(
+        `<h1>Listing Outcomes Dashboard Error</h1><pre>${error.message}</pre>`
       );
   }
 });
