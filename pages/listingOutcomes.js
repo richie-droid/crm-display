@@ -53,7 +53,7 @@ function renderListingOutcomesPage(data) {
 
   const cards = [
     {
-      label: "Total Listings",
+      label: "New Listings Launched",
       currentValue: formatCount(current.totalListings),
       priorValue: formatCount(prior.totalListings),
       changeValue: formatSigned(
@@ -75,7 +75,7 @@ function renderListingOutcomesPage(data) {
       changeLabel: "YoY Change",
     },
     {
-      label: "Available",
+      label: "Still Available",
       currentValue: formatCount(current.available),
       priorValue: formatCount(prior.available),
       changeValue: formatSigned(
@@ -255,8 +255,20 @@ function renderListingOutcomesPage(data) {
     .metric-grid {
       min-height: 0;
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 1.35vw;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 1.5vh 1.35vw;
+    }
+
+    .metric-card:nth-child(1),
+    .metric-card:nth-child(2),
+    .metric-card:nth-child(3) {
+      grid-column: span 2;
+    }
+
+    .metric-card:nth-child(4),
+    .metric-card:nth-child(5) {
+      grid-column: span 3;
     }
 
     .metric-card {
@@ -265,7 +277,7 @@ function renderListingOutcomesPage(data) {
       display: grid;
       grid-template-rows: auto 1fr auto;
       align-items: center;
-      padding: 2.4vh 1.25vw 2vh;
+      padding: 1.6vh 1.5vw 1.4vh;
       border: 0.18vh solid rgba(78, 146, 199, 0.85);
       border-radius: 1.8vh;
       background:
@@ -275,14 +287,14 @@ function renderListingOutcomesPage(data) {
     }
 
     .metric-label {
-      min-height: 5.2vh;
+      min-height: 3.5vh;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
       text-transform: uppercase;
       color: var(--green);
-      font-size: 1.85vh;
+      font-size: 1.7vh;
       line-height: 1.15;
       font-weight: 900;
       letter-spacing: 0.15vw;
@@ -294,7 +306,7 @@ function renderListingOutcomesPage(data) {
       justify-content: center;
       text-align: center;
       color: var(--white);
-      font-size: clamp(4.2vh, 4.2vw, 7vh);
+      font-size: clamp(4.4vh, 4.4vw, 6.8vh);
       line-height: 0.95;
       font-weight: 900;
       white-space: nowrap;
@@ -302,12 +314,12 @@ function renderListingOutcomesPage(data) {
 
     .comparison-row {
       width: 100%;
-      min-height: 10vh;
+      min-height: 6.8vh;
       display: grid;
       grid-template-columns: 1fr 1fr;
       align-items: center;
       border-top: 0.14vh solid rgba(244, 241, 236, 0.24);
-      padding-top: 1.6vh;
+      padding-top: 1.05vh;
     }
 
     .change-block {
@@ -326,9 +338,9 @@ function renderListingOutcomesPage(data) {
 
     .comparison-value,
     .change-value {
-      margin-top: 0.65vh;
+      margin-top: 0.4vh;
       color: var(--blue);
-      font-size: 2.2vh;
+      font-size: 1.95vh;
       font-weight: 900;
       white-space: nowrap;
     }

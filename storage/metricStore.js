@@ -50,8 +50,30 @@ function saveSnapshot({ metricKey, value, capturedAt, source = "unknown" }) {
   );
 
   const snapshot = { metricKey, value: numericValue, capturedAt: timestamp, source };
-  if (existingIndex >= 0) store.snapshots[existingIndex] = snapshot;
-  else store.snapshots.push(snapshot);
+
+  if (existingIndex >= 0) {
+    const existing = store.snapshots[existingIndex];
+    const incomingIsHistorical = String(source).toLowerCase().includes("historical");
+    const existingIsHistorical = String(existing.source || "").toLowerCase().includes("historical");
+
+    // Startup history seeding must never replace a live snapshot already
+    // collected for the same calendar day.
+    if (incomingIsHistorical && !existingIsHistorical) {
+      return existing;
+    }
+
+    // A live collection should replace a seeded historical value.
+    if (!incomingIsHistorical && existingIsHistorical) {
+      store.snapshots[existingIndex] = snapshot;
+    } else if (new Date(timestamp) >= new Date(existing.capturedAt)) {
+      // For snapshots of the same type, keep the newest observation.
+      store.snapshots[existingIndex] = snapshot;
+    } else {
+      return existing;
+    }
+  } else {
+    store.snapshots.push(snapshot);
+  }
 
   store.snapshots.sort((a, b) => new Date(a.capturedAt) - new Date(b.capturedAt));
   writeStore(store);
