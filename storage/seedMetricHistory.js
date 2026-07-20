@@ -32,9 +32,24 @@ function hasHistoricalData(metricKey) {
 
   return history.some(
     (snapshot) =>
-      snapshot.capturedAt.slice(0, 10) <
-      today
+      snapshot.capturedAt.slice(0, 10) < today
   );
+}
+
+async function runSeedStep(name, step) {
+  try {
+    return await step();
+  } catch (error) {
+    console.error(
+      `Market metric ${name} history seed failed:`,
+      error
+    );
+
+    return {
+      status: "failed",
+      error: error.message,
+    };
+  }
 }
 
 async function seedMetricHistory() {
@@ -44,67 +59,83 @@ async function seedMetricHistory() {
     treasury: null,
   };
 
-  if (hasHistoricalData(METRICS.CREXI)) {
-    results.crexi = {
-      status: "skipped",
-      reason: "Historical data already exists",
-    };
-  } else {
-    const importResult = importMetricHistory({
-      filePath: path.join(
-        __dirname,
-        "..",
-        "historical-data",
-        "crexi-history.csv"
-      ),
-      metricKey: METRICS.CREXI,
-      source: "crexi_historical_seed",
-    });
+  results.crexi = await runSeedStep(
+    "Crexi",
+    async () => {
+      if (hasHistoricalData(METRICS.CREXI)) {
+        return {
+          status: "skipped",
+          reason: "Historical data already exists",
+        };
+      }
 
-    results.crexi = {
-      status: "seeded",
-      ...importResult,
-    };
-  }
+      const importResult = importMetricHistory({
+        filePath: path.join(
+          __dirname,
+          "..",
+          "historical-data",
+          "crexi-history.csv"
+        ),
+        metricKey: METRICS.CREXI,
+        source: "crexi_historical_seed",
+      });
 
-  if (hasHistoricalData(METRICS.TRINITY)) {
-    results.trinity = {
-      status: "skipped",
-      reason: "Historical data already exists",
-    };
-  } else {
-    const importResult = importMetricHistory({
-      filePath: path.join(
-        __dirname,
-        "..",
-        "trinity-listing-history-90-days.csv"
-      ),
-      metricKey: METRICS.TRINITY,
-      source: "trinity_historical_seed",
-    });
+      return {
+        status: "seeded",
+        ...importResult,
+      };
+    }
+  );
 
-    results.trinity = {
-      status: "seeded",
-      ...importResult,
-    };
-  }
+  results.trinity = await runSeedStep(
+    "Trinity",
+    async () => {
+      if (hasHistoricalData(METRICS.TRINITY)) {
+        return {
+          status: "skipped",
+          reason: "Historical data already exists",
+        };
+      }
 
-  if (hasHistoricalData(METRICS.TREASURY)) {
-    results.treasury = {
-      status: "skipped",
-      reason: "Historical data already exists",
-    };
-  } else {
-    const backfillResult =
-      await backfillTreasuryHistory(
-        TREASURY_BACKFILL_DAYS
-      );
+      const importResult = importMetricHistory({
+        filePath: path.join(
+          __dirname,
+          "..",
+          "historical-data",
+          "trinity-listing-history-90-days.csv"
+        ),
+        metricKey: METRICS.TRINITY,
+        source: "trinity_historical_seed",
+      });
 
-    results.treasury = {
-      status: "seeded",
-      ...backfillResult,
-    };
-  }
+      return {
+        status: "seeded",
+        ...importResult,
+      };
+    }
+  );
+
+  results.treasury = await runSeedStep(
+    "Treasury",
+    async () => {
+      if (hasHistoricalData(METRICS.TREASURY)) {
+        return {
+          status: "skipped",
+          reason: "Historical data already exists",
+        };
+      }
+
+      const backfillResult =
+        await backfillTreasuryHistory(
+          TREASURY_BACKFILL_DAYS
+        );
+
+      return {
+        status: "seeded",
+        ...backfillResult,
+      };
+    }
+  );
 
   return results;
 }
