@@ -102,6 +102,36 @@ function getCohortWindows(now = new Date()) {
   };
 }
 
+
+function getField(record, fieldName) {
+  if (!record || !fieldName) return undefined;
+
+  if (record[fieldName] !== undefined) {
+    return record[fieldName];
+  }
+
+  const matchingKey = Object.keys(record).find(
+    (key) => key.toLowerCase() === fieldName.toLowerCase()
+  );
+
+  return matchingKey ? record[matchingKey] : undefined;
+}
+
+function getRelationshipField(
+  record,
+  relationshipName,
+  fieldName
+) {
+  const relationship = getField(
+    record,
+    relationshipName
+  );
+
+  return relationship
+    ? getField(relationship, fieldName)
+    : undefined;
+}
+
 function parseDate(value) {
   if (!value) return null;
 
@@ -146,10 +176,17 @@ function groupTrackerRecords(records) {
       deals.set(dealId, {
         dealId,
         dealName:
-          record.TTL_Core__Deal__r?.Name ||
-          "Unnamed Deal",
+          getRelationshipField(
+            record,
+            "TTL_Core__Deal__r",
+            "Name"
+          ) || "Unnamed Deal",
         dateOnMarket: parseDate(
-          record.TTL_Core__Deal__r?.[FIELDS.dateOnMarket]
+          getRelationshipField(
+            record,
+            "TTL_Core__Deal__r",
+            FIELDS.dateOnMarket
+          )
         ),
         trackerRows: [],
       });
