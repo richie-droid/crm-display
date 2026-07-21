@@ -305,7 +305,7 @@ async function fetchCompetitionRecords(token, windows) {
   ]);
 
   const agreedToRows = (loiHistory.records || []).filter(
-    (row) => String(getField(row, "NewValue") || "") === "Agreed To"
+    (row) => String(getField(row, "NewValue") || "") === "Accepted"
   );
 
   const firstAgreedToByOffer = new Map();
