@@ -282,7 +282,6 @@ async function fetchCompetitionRecords(token, windows) {
     SELECT ParentId, CreatedDate, OldValue, NewValue
     FROM TTL_Core__Offer__History
     WHERE Field = 'TTL_Core__Offer_Status__c'
-      AND NewValue = 'Agreed To'
       AND CreatedDate >= ${buildSoqlDateTimeStart(rangeStart)}
       AND CreatedDate <= ${buildSoqlDateTimeEnd(rangeEnd)}
     ORDER BY CreatedDate ASC
@@ -305,8 +304,12 @@ async function fetchCompetitionRecords(token, windows) {
     querySalesforceAll(token.instance_url, token.access_token, contractSoql),
   ]);
 
+  const agreedToRows = (loiHistory.records || []).filter(
+    (row) => String(getField(row, "NewValue") || "") === "Agreed To"
+  );
+
   const firstAgreedToByOffer = new Map();
-  for (const row of loiHistory.records || []) {
+  for (const row of agreedToRows) {
     const existing = firstAgreedToByOffer.get(row.ParentId);
     if (!existing || String(row.CreatedDate) < String(existing.CreatedDate)) {
       firstAgreedToByOffer.set(row.ParentId, row);
@@ -342,6 +345,7 @@ async function fetchCompetitionRecords(token, windows) {
     lois,
     contracts: contracts.records || [],
     rawLoiHistoryCount: (loiHistory.records || []).length,
+    agreedToHistoryCount: agreedToRows.length,
   };
 }
 
@@ -532,6 +536,7 @@ async function buildPipelineGrowthChallenge({ debug = false } = {}) {
         listings: records.listings.length,
         uniqueLois: records.lois.length,
         rawLoiHistoryRows: records.rawLoiHistoryCount,
+        agreedToHistoryRows: records.agreedToHistoryCount,
         contracts: records.contracts.length,
         callRowsWithValues: calls.filter((row) => row.calls !== null).length,
       },
