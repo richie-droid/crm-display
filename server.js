@@ -16,6 +16,8 @@ const {
 const { renderMarketStatisticsPage } = require("./pages/marketStatistics");
 const { buildListingOutcomesDashboard } = require("./data/listingOutcomes");
 const { renderListingOutcomesPage } = require("./pages/listingOutcomes");
+const { buildPipelineGrowthChallenge } = require("./data/pipelineGrowthChallenge");
+const { renderPipelineGrowthChallengePage } = require("./pages/pipelineGrowthChallenge");
 const { saveSnapshot, saveAttempt } = require("./storage/metricStore");
 const { seedMetricHistory } = require("./storage/seedMetricHistory");
 
@@ -125,6 +127,39 @@ app.get("/api/listing-outcomes", async (req, res) => {
     });
   } catch (error) {
     console.error("Listing outcomes error:", error);
+
+    res.status(500).json({
+      ok: false,
+      message: error.message,
+    });
+  }
+});
+
+
+app.get("/api/pipeline-growth-challenge", async (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      ...(await buildPipelineGrowthChallenge()),
+    });
+  } catch (error) {
+    console.error("Pipeline Growth Challenge error:", error);
+
+    res.status(500).json({
+      ok: false,
+      message: error.message,
+    });
+  }
+});
+
+app.get("/api/pipeline-growth-challenge/debug", async (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      ...(await buildPipelineGrowthChallenge({ debug: true })),
+    });
+  } catch (error) {
+    console.error("Pipeline Growth Challenge debug error:", error);
 
     res.status(500).json({
       ok: false,
@@ -291,6 +326,25 @@ app.get("/listing-outcomes", async (req, res) => {
       .status(500)
       .send(
         `<h1>Listing Outcomes Dashboard Error</h1><pre>${error.message}</pre>`
+      );
+  }
+});
+
+
+app.get("/pipeline-growth-challenge", async (req, res) => {
+  try {
+    res.send(
+      renderPipelineGrowthChallengePage(
+        await buildPipelineGrowthChallenge()
+      )
+    );
+  } catch (error) {
+    console.error("Pipeline Growth Challenge page error:", error);
+
+    res
+      .status(500)
+      .send(
+        `<h1>Pipeline Growth Challenge Error</h1><pre>${error.message}</pre>`
       );
   }
 });
