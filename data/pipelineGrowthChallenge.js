@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { loadPipelineGrowthCalls } = require("../storage/pipelineGrowthCalls");
 const {
   getSalesforceToken,
   querySalesforceAll,
@@ -22,11 +23,6 @@ const ROSTER_PATH = path.join(
   __dirname,
   "../config/pipeline-growth-roster.csv"
 );
-const CALLS_PATH = path.join(
-  __dirname,
-  "../config/pipeline-growth-calls.csv"
-);
-
 function parseCsv(text) {
   const rows = [];
   let row = [];
@@ -183,18 +179,11 @@ function loadRoster() {
 }
 
 function loadCalls() {
-  return readCsv(CALLS_PATH)
-    .map((row) => ({
-      weekStart: row.week_start,
-      salesforceName: row.salesforce_name,
-      calls: row.calls === "" ? null : Number(row.calls),
-    }))
-    .filter(
-      (row) =>
-        row.weekStart &&
-        row.salesforceName &&
-        (row.calls === null || Number.isFinite(row.calls))
-    );
+  return loadPipelineGrowthCalls().map((row) => ({
+    weekStart: row.weekStart,
+    salesforceName: row.salesforceName,
+    calls: row.calls,
+  }));
 }
 
 function weekIndex(dateValue, periodStart) {
@@ -445,6 +434,39 @@ function buildTeams(agentRows) {
     .map((team, index) => ({ ...team, rank: index + 1 }));
 }
 
+
+function getCompetitionWeeks() {
+  const weeks = [];
+  for (const [period, window] of [[1, CONFIG.period1], [2, CONFIG.period2]]) {
+    let current = parseDateOnly(window.start);
+    const end = parseDateOnly(window.end);
+    while (current <= end) {
+      weeks.push({ period, weekStart: formatDate(current) });
+      current = addDays(current, 7);
+    }
+  }
+  return weeks;
+}
+
+function getPipelineGrowthRoster() {
+  return loadRoster().rows.map((row) => ({
+    salesforceName: row.salesforce_name,
+    displayName: row.display_name || row.salesforce_name,
+    team: row.team,
+  }));
+}
+
+function getAgentCallouts(agentRows) {
+  const eligible = agentRows.filter((agent) => agent.period1Points > 0 && agent.growthPct !== null);
+  const sorted = [...eligible].sort((a, b) =>
+    b.growthPct - a.growthPct || b.period2Points - a.period2Points
+  );
+  return {
+    topGrower: sorted.length ? sorted[0] : null,
+    justAShower: sorted.length ? sorted[sorted.length - 1] : null,
+  };
+}
+
 async function buildPipelineGrowthChallenge({ debug = false } = {}) {
   const windows = getWindows();
   const roster = loadRoster();
@@ -526,6 +548,7 @@ async function buildPipelineGrowthChallenge({ debug = false } = {}) {
       rule: "Call weeks enter both comparison periods only after Period 2 data for the matching week has been entered.",
     },
     teams,
+    callouts: getAgentCallouts(agentRows),
   };
 
   if (debug) {
@@ -551,4 +574,6 @@ async function buildPipelineGrowthChallenge({ debug = false } = {}) {
 module.exports = {
   CONFIG,
   buildPipelineGrowthChallenge,
+  getCompetitionWeeks,
+  getPipelineGrowthRoster,
 };
