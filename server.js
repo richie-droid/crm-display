@@ -16,8 +16,18 @@ const {
 const { renderMarketStatisticsPage } = require("./pages/marketStatistics");
 const { buildListingOutcomesDashboard } = require("./data/listingOutcomes");
 const { renderListingOutcomesPage } = require("./pages/listingOutcomes");
-const { buildPipelineGrowthChallenge } = require("./data/pipelineGrowthChallenge");
+const {
+  buildPipelineGrowthChallenge,
+  getCompetitionWeeks,
+  getPipelineGrowthRoster,
+} = require("./data/pipelineGrowthChallenge");
 const { renderPipelineGrowthChallengePage } = require("./pages/pipelineGrowthChallenge");
+const { renderPipelineGrowthVerificationPage } = require("./pages/pipelineGrowthVerification");
+const { renderPipelineGrowthAdminPage } = require("./pages/pipelineGrowthAdmin");
+const {
+  getPipelineGrowthCallsData,
+  savePipelineGrowthCalls,
+} = require("./storage/pipelineGrowthCalls");
 const { saveSnapshot, saveAttempt } = require("./storage/metricStore");
 const { seedMetricHistory } = require("./storage/seedMetricHistory");
 
@@ -52,6 +62,7 @@ function requireIngestSecret(req, res, next) {
 
   next();
 }
+
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -135,37 +146,24 @@ app.get("/api/listing-outcomes", async (req, res) => {
   }
 });
 
-
 app.get("/api/pipeline-growth-challenge", async (req, res) => {
-  try {
-    res.json({
-      ok: true,
-      ...(await buildPipelineGrowthChallenge()),
-    });
-  } catch (error) {
-    console.error("Pipeline Growth Challenge error:", error);
-
-    res.status(500).json({
-      ok: false,
-      message: error.message,
-    });
-  }
+  try { res.json({ ok: true, ...(await buildPipelineGrowthChallenge()) }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
 });
 
 app.get("/api/pipeline-growth-challenge/debug", async (req, res) => {
-  try {
-    res.json({
-      ok: true,
-      ...(await buildPipelineGrowthChallenge({ debug: true })),
-    });
-  } catch (error) {
-    console.error("Pipeline Growth Challenge debug error:", error);
+  try { res.json({ ok: true, ...(await buildPipelineGrowthChallenge({ debug: true })) }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
+});
 
-    res.status(500).json({
-      ok: false,
-      message: error.message,
-    });
-  }
+app.get("/api/pipeline-growth-challenge/calls", (req, res) => {
+  try { res.json({ ok: true, ...getPipelineGrowthCallsData() }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
+});
+
+app.post("/api/pipeline-growth-challenge/calls", (req, res) => {
+  try { res.json({ ok: true, ...savePipelineGrowthCalls(req.body?.entries || []) }); }
+  catch (error) { res.status(400).json({ ok: false, message: error.message }); }
 });
 
 app.get("/api/market-statistics", (req, res) => {
@@ -330,23 +328,24 @@ app.get("/listing-outcomes", async (req, res) => {
   }
 });
 
-
 app.get("/pipeline-growth-challenge", async (req, res) => {
-  try {
-    res.send(
-      renderPipelineGrowthChallengePage(
-        await buildPipelineGrowthChallenge()
-      )
-    );
-  } catch (error) {
-    console.error("Pipeline Growth Challenge page error:", error);
+  try { res.send(renderPipelineGrowthChallengePage(await buildPipelineGrowthChallenge())); }
+  catch (error) { res.status(500).send(`<h1>Pipeline Growth Challenge Error</h1><pre>${error.message}</pre>`); }
+});
 
-    res
-      .status(500)
-      .send(
-        `<h1>Pipeline Growth Challenge Error</h1><pre>${error.message}</pre>`
-      );
-  }
+app.get("/pipeline-growth-challenge/verification", async (req, res) => {
+  try { res.send(renderPipelineGrowthVerificationPage(await buildPipelineGrowthChallenge())); }
+  catch (error) { res.status(500).send(`<h1>Pipeline Growth Verification Error</h1><pre>${error.message}</pre>`); }
+});
+
+app.get("/pipeline-growth-challenge/admin", (req, res) => {
+  try {
+    res.send(renderPipelineGrowthAdminPage({
+      roster: getPipelineGrowthRoster(),
+      weeks: getCompetitionWeeks(),
+      callsData: getPipelineGrowthCallsData(),
+    }));
+  } catch (error) { res.status(500).send(`<h1>Pipeline Growth Admin Error</h1><pre>${error.message}</pre>`); }
 });
 
 app.get("/market-statistics", (req, res) => {
