@@ -2,17 +2,14 @@ const fs = require("fs");
 const path = require("path");
 
 const DATA_DIR =
-  process.env.METRICS_DATA_DIR ||
-  path.join(__dirname, "data");
+  process.env.RAILWAY_ENVIRONMENT
+    ? "/data/market-statistics"
+    : path.join(__dirname, "data");
 
 const DATA_FILE = path.join(
   DATA_DIR,
   "metric-snapshots.json"
 );
-
-console.log("[metricStore] METRICS_DATA_DIR:", process.env.METRICS_DATA_DIR);
-console.log("[metricStore] DATA_FILE:", DATA_FILE);
-console.log("[metricStore] DATA_FILE exists:", fs.existsSync(DATA_FILE));
 
 function ensureStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
