@@ -10,6 +10,10 @@ const DATA_FILE = path.join(
   "metric-snapshots.json"
 );
 
+console.log("[metricStore] METRICS_DATA_DIR:", process.env.METRICS_DATA_DIR);
+console.log("[metricStore] DATA_FILE:", DATA_FILE);
+console.log("[metricStore] DATA_FILE exists:", fs.existsSync(DATA_FILE));
+
 function ensureStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
