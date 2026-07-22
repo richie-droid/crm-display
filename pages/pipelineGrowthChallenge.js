@@ -16,16 +16,6 @@ function pace(value) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-function formatDate(value) {
-  if (!value) return "Not started";
-  const [year, month, day] = value.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(year, month - 1, day)));
-}
 
 function calloutCard(label, agent, tone) {
   if (!agent) {
@@ -117,11 +107,41 @@ function renderPipelineGrowthChallengePage(data) {
 
     header {
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: space-between;
       margin-bottom: 18px;
       padding-bottom: 16px;
       border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      font-size: 30px;
+      font-weight: 900;
+    }
+
+    .brand-divider {
+      width: 1px;
+      height: 38px;
+      background: var(--line);
+    }
+
+    .brand-name {
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: 6px;
     }
 
     h1 {
@@ -129,25 +149,6 @@ function renderPipelineGrowthChallengePage(data) {
       font-size: 42px;
       line-height: 1;
       letter-spacing: -1px;
-    }
-
-    .subtitle {
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 15px;
-    }
-
-    .window {
-      color: var(--muted);
-      font-size: 14px;
-      text-align: right;
-    }
-
-    .window strong {
-      display: block;
-      margin-bottom: 3px;
-      color: var(--text);
-      font-size: 16px;
     }
 
     .callouts {
@@ -286,40 +287,85 @@ function renderPipelineGrowthChallengePage(data) {
     .pace.negative strong { color: var(--bad); }
     .pace.neutral strong { color: var(--muted); }
 
-    footer {
+    .info-grid {
       display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: end;
-      gap: 18px;
-      margin-top: 13px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 16px;
     }
 
-    .footer-note strong { color: var(--text); }
-    .links { white-space: nowrap; }
-    .links a {
-      margin-left: 14px;
-      color: var(--accent);
-      text-decoration: none;
+    .info-card {
+      grid-column: span 2;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(150deg, rgba(20, 47, 63, .97), rgba(10, 28, 39, .98));
+      box-shadow: 0 14px 30px rgba(0, 0, 0, .18);
     }
+
+    .info-card h3 {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 20px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .info-card ul {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding-left: 20px;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .score-matrix {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .score-item {
+      padding: 12px 8px;
+      border: 1px solid rgba(70, 106, 128, .35);
+      border-radius: 10px;
+      background: rgba(4, 15, 23, .45);
+      text-align: center;
+    }
+
+    .score-item span {
+      display: block;
+      min-height: 30px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+
+    .score-item strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 22px;
+    }
+
 
     @media (max-width: 1200px) {
       .grid { grid-template-columns: repeat(2, 1fr); }
+      .info-grid { grid-template-columns: repeat(2, 1fr); }
+      .info-card { grid-column: span 1; }
     }
   </style>
 </head>
 <body>
   <header>
-    <div>
-      <h1>${escapeHtml(data.title)}</h1>
-      <div class="subtitle">Team score = growth in points versus the matching elapsed portion of Period 1</div>
+    <div class="brand">
+      <div class="logo-mark">T</div>
+      <div class="brand-divider"></div>
+      <div class="brand-name">TRINITY</div>
     </div>
-    <div class="window">
-      <strong>Period 2 through ${formatDate(data.windows.period2Live.end)}</strong>
-      Compared with ${formatDate(data.windows.period1Equal.start)}–${formatDate(data.windows.period1Equal.end)}
-    </div>
+    <h1>${escapeHtml(data.title)}</h1>
   </header>
 
   <section class="callouts">
@@ -329,16 +375,29 @@ function renderPipelineGrowthChallengePage(data) {
 
   <main class="grid">${cards}</main>
 
-  <footer>
-    <span class="footer-note">
-      <strong>Current Points and Previous Points cover the same number of elapsed competition days.</strong>
-      Baseline reflects full Period 1 points from Mar 30–May 15, 2026.
-    </span>
-    <span class="links">
-      <a href="/pipeline-growth-challenge/verification">Verification</a>
-      <a href="/pipeline-growth-challenge/admin">Call Admin</a>
-    </span>
-  </footer>
+  <section class="info-grid">
+    <article class="info-card">
+      <h3>Competition Structure</h3>
+      <ul>
+        <li>Challenge Period: July 20th - Sept 4th</li>
+        <li>Baseline Period: March 30th - May 15th</li>
+        <li>Current Pace compares equal # of competition days from Challenge Period and Baseline Period</li>
+        <li>Standings/Winner determined by highest growth rate %</li>
+        <li>Call Stats Updated Weekly</li>
+      </ul>
+    </article>
+
+    <article class="info-card">
+      <h3>Scoring Matrix</h3>
+      <div class="score-matrix">
+        <div class="score-item"><span>Calls</span><strong>1</strong></div>
+        <div class="score-item"><span>Proposals</span><strong>200</strong></div>
+        <div class="score-item"><span>Listings</span><strong>2,000</strong></div>
+        <div class="score-item"><span>Accepted LOIs</span><strong>2,000</strong></div>
+        <div class="score-item"><span>Contracts</span><strong>4,000</strong></div>
+      </div>
+    </article>
+  </section>
 </body>
 </html>`;
 }
