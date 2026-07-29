@@ -16,6 +16,8 @@ const {
 const { renderMarketStatisticsPage } = require("./pages/marketStatistics");
 const { buildListingOutcomesDashboard } = require("./data/listingOutcomes");
 const { renderListingOutcomesPage } = require("./pages/listingOutcomes");
+const { buildListingOutcomeTrends } = require("./data/listingOutcomeTrends");
+const { renderListingOutcomeTrendsPage } = require("./pages/listingOutcomeTrends");
 const {
   buildPipelineGrowthChallenge,
   getCompetitionWeeks,
@@ -138,10 +140,29 @@ app.get("/api/listing-outcomes", async (req, res) => {
   try {
     res.json({
       ok: true,
-      ...(await buildListingOutcomesDashboard()),
+      ...(await buildListingOutcomesDashboard({
+        anchorDate: req.query.anchorDate,
+        windowMonths: req.query.windowMonths,
+      })),
     });
   } catch (error) {
     console.error("Listing outcomes error:", error);
+
+    res.status(500).json({
+      ok: false,
+      message: error.message,
+    });
+  }
+});
+
+app.get("/api/listing-outcomes/trends", async (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      ...(await buildListingOutcomeTrends()),
+    });
+  } catch (error) {
+    console.error("Listing outcome trends error:", error);
 
     res.status(500).json({
       ok: false,
@@ -328,7 +349,10 @@ app.get("/listing-outcomes", async (req, res) => {
   try {
     res.send(
       renderListingOutcomesPage(
-        await buildListingOutcomesDashboard()
+        await buildListingOutcomesDashboard({
+          anchorDate: req.query.anchorDate,
+          windowMonths: req.query.windowMonths,
+        })
       )
     );
   } catch (error) {
@@ -338,6 +362,24 @@ app.get("/listing-outcomes", async (req, res) => {
       .status(500)
       .send(
         `<h1>Listing Outcomes Dashboard Error</h1><pre>${error.message}</pre>`
+      );
+  }
+});
+
+app.get("/listing-outcomes/trends", async (req, res) => {
+  try {
+    res.send(
+      renderListingOutcomeTrendsPage(
+        await buildListingOutcomeTrends()
+      )
+    );
+  } catch (error) {
+    console.error("Listing outcome trends page error:", error);
+
+    res
+      .status(500)
+      .send(
+        `<h1>Listing Outcome Trends Error</h1><pre>${error.message}</pre>`
       );
   }
 });

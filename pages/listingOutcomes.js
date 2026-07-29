@@ -61,7 +61,7 @@ function renderListingOutcomesPage(data) {
         1,
         "%"
       ),
-      changeLabel: "YoY Change",
+      changeLabel: "vs Prior",
     },
     {
       label: "Closed",
@@ -72,7 +72,7 @@ function renderListingOutcomesPage(data) {
         1,
         "%"
       ),
-      changeLabel: "YoY Change",
+      changeLabel: "vs Prior",
     },
     {
       label: "Still Available",
@@ -83,7 +83,7 @@ function renderListingOutcomesPage(data) {
         1,
         "%"
       ),
-      changeLabel: "YoY Change",
+      changeLabel: "vs Prior",
     },
     {
       label: "Close Rate",
@@ -118,7 +118,6 @@ function renderListingOutcomesPage(data) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="refresh" content="900" />
   <title>Trinity Listing Outcomes</title>
 
   <style>
@@ -138,9 +137,8 @@ function renderListingOutcomesPage(data) {
     html,
     body {
       width: 100%;
-      height: 100%;
+      min-height: 100%;
       margin: 0;
-      overflow: hidden;
       background: var(--black);
       color: var(--white);
       font-family: Arial, Helvetica, sans-serif;
@@ -154,12 +152,76 @@ function renderListingOutcomesPage(data) {
     }
 
     .screen {
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      min-height: 100vh;
       padding: 2.5vh 3vw 2.8vh;
       display: grid;
-      grid-template-rows: 10vh 8vh 1fr 7vh;
+      grid-template-rows: auto auto auto 1fr auto;
       gap: 2vh;
+    }
+
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 1.2vw;
+      padding: 1.2vh 1.3vw;
+      border: 0.15vh solid rgba(78, 146, 199, 0.5);
+      border-radius: 1.2vh;
+      background: rgba(2, 7, 10, 0.54);
+    }
+
+    .controls-form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 1.2vw;
+    }
+
+    .controls-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4vh;
+      font-size: 1.3vh;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.08vw;
+      font-weight: 800;
+    }
+
+    .controls-form input {
+      font: inherit;
+      font-size: 1.6vh;
+      padding: 0.8vh 0.8vw;
+      border: 0.14vh solid rgba(78, 146, 199, 0.5);
+      border-radius: 0.7vh;
+      background: rgba(2, 7, 10, 0.6);
+      color: var(--white);
+    }
+
+    .controls-form button {
+      font: inherit;
+      font-size: 1.5vh;
+      font-weight: 800;
+      padding: 0.9vh 1.4vw;
+      border: none;
+      border-radius: 0.7vh;
+      background: var(--blue);
+      color: var(--black);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06vw;
+    }
+
+    .controls-note {
+      margin-top: 0.4vh;
+      flex-basis: 100%;
+      color: rgba(254, 250, 246, 0.55);
+      font-size: 1.15vh;
+    }
+
+    .controls-note a {
+      color: var(--blue);
     }
 
     .header {
@@ -382,6 +444,27 @@ function renderListingOutcomesPage(data) {
       <div class="page-title">Listing Outcomes</div>
     </section>
 
+    <section class="controls-bar">
+      <form method="GET" action="/listing-outcomes" class="controls-form">
+        <label>
+          <span>Anchor Date</span>
+          <input type="date" name="anchorDate" value="${data.anchorDate}" />
+        </label>
+
+        <label>
+          <span>Window Length (months)</span>
+          <input type="number" name="windowMonths" min="1" max="60" step="1" value="${data.windowMonths}" />
+        </label>
+
+        <button type="submit">Update</button>
+      </form>
+
+      <div class="controls-note">
+        Recency buffer fixed at ${data.recencyBufferMonths} months (excludes listings too recent to have had time to close). Prior cohort is the same window length immediately preceding the current one.
+        &nbsp;<a href="/listing-outcomes/trends">View quarterly trends &rarr;</a>
+      </div>
+    </section>
+
     <section class="period-bar">
       <div class="period-group">
         <div class="period-label">Current Listing Cohort</div>
@@ -389,7 +472,7 @@ function renderListingOutcomesPage(data) {
       </div>
 
       <div class="period-group">
-        <div class="period-label">Prior-Year Cohort</div>
+        <div class="period-label">Prior Cohort</div>
         <div class="period-value">${prior.display}</div>
       </div>
 

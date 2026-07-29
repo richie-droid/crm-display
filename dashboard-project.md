@@ -254,6 +254,8 @@ Pages
 
 /listing-outcomes
 
+/listing-outcomes/trends
+
 /market-statistics
 
 /pipeline-growth-challenge
@@ -271,6 +273,8 @@ API
 /api/individual-performance
 
 /api/listing-outcomes
+
+/api/listing-outcomes/trends
 
 /api/market-statistics
 
@@ -586,6 +590,8 @@ Built, Not Yet Live
 
 Listing Outcomes (pending partner review)
 
+Listing Outcome Trends (sister page, not TV-bound, fixed preset range)
+
 ---
 
 # Planned Dashboards
@@ -813,7 +819,7 @@ Current Work
 
 Status
 
-Fully built. Not yet on TVs — pending review with partners. Likely the next dashboard to go live.
+Fully built. Not yet on TVs — pending review with partners. Not TV-constrained: this page (and its trends sister page) are exploration/analysis tools, not passive signage, so they intentionally use interactive form controls rather than following the other dashboards' fixed-display design.
 
 Route
 
@@ -827,10 +833,14 @@ Source Object
 
 `TTL_Core__Deal_Stage_Tracker__c` (stage history per deal)
 
-Cohort Windows
+Cohort Windows (adjustable, added July 2026)
 
-- Current Cohort: listings that went on-market 18 to 6 months ago.
-- Prior-Year Cohort: listings that went on-market 30 to 18 months ago.
+The page has a form (Anchor Date + Window Length in months, submitted via a plain GET) so cohorts can be recomputed on demand instead of being fixed to "today."
+
+- Recency buffer is fixed at 9 months: the current cohort always ends 9 months before the anchor date, so listings have had time to actually close.
+- Current Cohort: [anchor − 9mo − windowMonths, anchor − 9mo).
+- Prior Cohort: the same window length, immediately preceding the current cohort.
+- Defaults: anchor = today, window length = 12 months (matches the original fixed behavior).
 
 Metrics (per cohort)
 
@@ -842,7 +852,29 @@ Metrics (per cohort)
 
 Data Reliability
 
-Deal Stage Tracker history is sound for the current ~30-month lookback window. Going back further than that would introduce gaps.
+Deal Stage Tracker history is sound back to when tracking began (April 2023). Going back further than that would introduce gaps.
+
+---
+
+# Listing Outcome Trends (July 2026)
+
+Status
+
+Fully built, sister page to Listing Outcomes. Not TV-bound. Fixed preset range (no adjustable controls).
+
+Route
+
+`/listing-outcomes/trends`
+
+Purpose
+
+Four line charts (New Listings Launched, Closed, Close Rate, Avg Days on Market) showing quarterly checkpoints over time, so trends are visible at a glance rather than only comparing two cohorts.
+
+Checkpoints
+
+- One point per calendar quarter (Jan 1 / Apr 1 / Jul 1 / Oct 1), from the most recent quarter back through Jul 1, 2023 (the earliest calendar-quarter start on/after May 2023, since Deal Stage Tracker data begins April 2023).
+- Each point reuses the exact same trailing-window formula as the main cohort page (12-month window, 9-month recency buffer), just recalculated at each checkpoint date instead of only "today" — so every point is directly comparable to the others and to the main page's methodology.
+- Implementation fetches Deal Stage Tracker data once across the whole span needed, then derives each checkpoint's metrics from that single dataset, rather than issuing one Salesforce query per checkpoint.
 
 ---
 

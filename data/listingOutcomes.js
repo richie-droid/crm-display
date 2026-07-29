@@ -21,6 +21,9 @@ const STAGES = {
   ]),
 };
 
+const RECENCY_BUFFER_MONTHS = 9;
+const DEFAULT_WINDOW_MONTHS = 12;
+
 function addUtcMonths(date, months) {
   const result = new Date(date.getTime());
   const originalDay = result.getUTCDate();
@@ -72,13 +75,13 @@ function formatWindowLabel(start, endExclusive) {
   return `${formatter.format(start)} - ${formatter.format(endInclusive)}`;
 }
 
-function getCohortWindows(now = new Date()) {
-  const today = startOfUtcDay(now);
+function getCohortWindows(anchorDate = new Date(), windowMonths = DEFAULT_WINDOW_MONTHS) {
+  const anchor = startOfUtcDay(anchorDate);
 
-  const currentStart = addUtcMonths(today, -18);
-  const currentEnd = addUtcMonths(today, -6);
-  const priorStart = addUtcMonths(today, -30);
+  const currentEnd = addUtcMonths(anchor, -RECENCY_BUFFER_MONTHS);
+  const currentStart = addUtcMonths(currentEnd, -windowMonths);
   const priorEnd = currentStart;
+  const priorStart = addUtcMonths(priorEnd, -windowMonths);
 
   return {
     current: {
@@ -91,7 +94,7 @@ function getCohortWindows(now = new Date()) {
       ),
     },
     prior: {
-      label: "Prior-Year Cohort",
+      label: "Prior Cohort",
       start: priorStart,
       endExclusive: priorEnd,
       display: formatWindowLabel(
@@ -100,6 +103,18 @@ function getCohortWindows(now = new Date()) {
       ),
     },
   };
+}
+
+function parseAnchorDate(value) {
+  if (!value) return new Date();
+  const parsed = new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function parseWindowMonths(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || !Number.isInteger(num)) return DEFAULT_WINDOW_MONTHS;
+  return Math.min(60, Math.max(1, num));
 }
 
 
@@ -327,10 +342,7 @@ function buildComparison(current, prior) {
   };
 }
 
-async function buildListingOutcomesDashboard() {
-  const token = await getSalesforceToken();
-  const windows = getCohortWindows();
-
+async function fetchDealOutcomes(token, rangeStart, rangeEndExclusive) {
   const relevantStages = [
     STAGES.onMarket,
     ...STAGES.closed,
@@ -353,10 +365,10 @@ async function buildListingOutcomesDashboard() {
     FROM ${TRACKER_OBJECT}
     WHERE
       TTL_Core__Deal__r.${FIELDS.dateOnMarket} >= ${formatSoqlDate(
-        windows.prior.start
+        rangeStart
       )}
       AND TTL_Core__Deal__r.${FIELDS.dateOnMarket} < ${formatSoqlDate(
-        windows.current.endExclusive
+        rangeEndExclusive
       )}
       AND ${FIELDS.stageName} IN (
         ${relevantStages}
@@ -382,6 +394,26 @@ async function buildListingOutcomesDashboard() {
     .map(deriveDealOutcome)
     .filter(Boolean);
 
+  return {
+    outcomes,
+    trackerRecordCount: result.records?.length || 0,
+    uniqueDealCount: groupedDeals.size,
+  };
+}
+
+async function buildListingOutcomesDashboard({ anchorDate, windowMonths } = {}) {
+  const resolvedAnchor = parseAnchorDate(anchorDate);
+  const resolvedWindowMonths = parseWindowMonths(windowMonths);
+
+  const token = await getSalesforceToken();
+  const windows = getCohortWindows(resolvedAnchor, resolvedWindowMonths);
+
+  const { outcomes, trackerRecordCount, uniqueDealCount } = await fetchDealOutcomes(
+    token,
+    windows.prior.start,
+    windows.current.endExclusive
+  );
+
   const current = summarizeCohort(
     outcomes,
     windows.current
@@ -395,9 +427,11 @@ async function buildListingOutcomesDashboard() {
   return {
     generatedAt: new Date().toISOString(),
     dataThrough: new Date().toISOString().slice(0, 10),
-    trackerRecordCount:
-      result.records?.length || 0,
-    uniqueDealCount: groupedDeals.size,
+    anchorDate: formatSoqlDate(startOfUtcDay(resolvedAnchor)),
+    windowMonths: resolvedWindowMonths,
+    recencyBufferMonths: RECENCY_BUFFER_MONTHS,
+    trackerRecordCount,
+    uniqueDealCount,
     current,
     prior,
     comparison: buildComparison(current, prior),
@@ -407,4 +441,11 @@ async function buildListingOutcomesDashboard() {
 module.exports = {
   buildListingOutcomesDashboard,
   getCohortWindows,
+  fetchDealOutcomes,
+  summarizeCohort,
+  addUtcMonths,
+  startOfUtcDay,
+  formatSoqlDate,
+  RECENCY_BUFFER_MONTHS,
+  DEFAULT_WINDOW_MONTHS,
 };
