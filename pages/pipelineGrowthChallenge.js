@@ -114,15 +114,15 @@ function renderPipelineGrowthChallengePage(data) {
     html,
     body {
       width: 100%;
-      min-height: 100%;
+      height: 100%;
       margin: 0;
+      overflow: hidden;
       background: var(--black);
       color: var(--white);
       font-family: Arial, Helvetica, sans-serif;
     }
 
     body {
-      padding: 2.5vh 3vw 3vh;
       background:
         radial-gradient(
           circle at 85% 10%,
@@ -143,17 +143,19 @@ function renderPipelineGrowthChallengePage(data) {
     }
 
     .screen {
-      width: 100%;
-      min-height: calc(100vh - 5.5vh);
+      width: 100vw;
+      height: 100vh;
+      padding: 2vh 3vw;
+      display: grid;
+      grid-template-rows: 8vh 11vh 1fr 20vh 3vh;
+      gap: 1vh;
     }
 
     .header {
       display: grid;
       grid-template-columns: 1fr auto;
       align-items: center;
-      min-height: 10vh;
-      margin-bottom: 1.8vh;
-      padding-bottom: 1.5vh;
+      padding-bottom: 1vh;
       border-bottom: 0.22vh solid rgba(244, 241, 236, 0.34);
     }
 
@@ -209,7 +211,7 @@ function renderPipelineGrowthChallengePage(data) {
       grid-template-columns: 1fr auto 1fr;
       align-items: stretch;
       gap: 1.2vw;
-      margin-bottom: 1.6vh;
+      min-height: 0;
     }
 
     .rank-group {
@@ -218,7 +220,7 @@ function renderPipelineGrowthChallengePage(data) {
     }
 
     .rank-group-label {
-      margin-bottom: 0.7vh;
+      margin-bottom: 0.5vh;
       text-align: center;
       font-size: 1.4vh;
       font-weight: 900;
@@ -246,8 +248,8 @@ function renderPipelineGrowthChallengePage(data) {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.5vh;
-      padding: 1.3vh 1.2vw;
+      gap: 0.4vh;
+      padding: 1vh 1.2vw;
       border: 0.16vh solid var(--line);
       border-radius: 1.4vh;
       text-align: center;
@@ -288,13 +290,16 @@ function renderPipelineGrowthChallengePage(data) {
     .team-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 1.4vh 1vw;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 1vh 1vw;
+      min-height: 0;
     }
 
     .team-card {
       position: relative;
       min-width: 0;
-      min-height: 25vh;
+      min-height: 0;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       padding: 1.6vh 1.1vw;
@@ -414,13 +419,14 @@ function renderPipelineGrowthChallengePage(data) {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 1vw;
-      margin-top: 1.6vh;
+      min-height: 0;
     }
 
     .info-card {
       grid-column: span 2;
-      min-height: 20vh;
-      padding: 1.7vh 1.35vw;
+      min-height: 0;
+      overflow: hidden;
+      padding: 1.4vh 1.35vw;
       border: 0.16vh solid var(--line);
       border-radius: 1.5vh;
       background:
@@ -432,9 +438,9 @@ function renderPipelineGrowthChallengePage(data) {
     }
 
     .info-card h3 {
-      margin: 0 0 1.35vh;
+      margin: 0 0 1vh;
       color: var(--green);
-      font-size: 2.45vh;
+      font-size: 2.2vh;
       line-height: 1.05;
       letter-spacing: 0.03vw;
       text-transform: uppercase;
@@ -444,12 +450,12 @@ function renderPipelineGrowthChallengePage(data) {
       margin: 0;
       padding-left: 1.3vw;
       color: var(--white);
-      font-size: 1.8vh;
-      line-height: 1.55;
+      font-size: 1.5vh;
+      line-height: 1.32;
     }
 
     .structure-list li + li {
-      margin-top: 0.45vh;
+      margin-top: 0.3vh;
     }
 
     .scoring-grid {
@@ -491,7 +497,7 @@ function renderPipelineGrowthChallengePage(data) {
       grid-template-columns: 1fr auto;
       align-items: center;
       gap: 1vw;
-      margin-top: 1.25vh;
+      min-height: 0;
       color: rgba(254, 250, 246, 0.58);
       font-size: 1.1vh;
       line-height: 1.35;
