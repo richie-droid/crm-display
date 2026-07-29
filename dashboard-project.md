@@ -1,6 +1,6 @@
 # Trinity KPI Dashboard
-Version: 1.0
-Last Updated: June 2026
+Version: 1.1
+Last Updated: July 2026
 
 ---
 
@@ -89,17 +89,47 @@ Version Control
 ```
 config/
     teams.js
+    pipeline-growth-roster.csv
+    pipeline-growth-calls.csv
 
 data/
     closedTransactions.js
     listings.js
+    individualPerformance.js
+    listingOutcomes.js
+    marketStatistics.js
+    pipelineGrowthChallenge.js
 
 pages/
     closedTransactions.js
     listings.js
+    individualPerformance.js
+    listingOutcomes.js
+    marketStatistics.js
+    pipelineGrowthChallenge.js
+    pipelineGrowthVerification.js
+    pipelineGrowthAdmin.js
 
 salesforce/
     client.js
+
+storage/
+    metricStore.js
+    pipelineGrowthCalls.js
+    seedMetricHistory.js
+    data/ (persisted snapshots — gitignored)
+
+scripts/
+    backfill-treasury-history.js
+    import-metric-history.js
+
+historical-data/
+    crexi-history.csv
+    trinity-listing-history-90-days.csv
+
+crexi-collector/
+    collector.js
+    (separate Node project; see crexi-collector/README.md)
 
 server.js
 
@@ -220,11 +250,39 @@ Pages
 
 /listings
 
+/individual-performance
+
+/listing-outcomes
+
+/market-statistics
+
+/pipeline-growth-challenge
+
+/pipeline-growth-challenge/verification
+
+/pipeline-growth-challenge/admin
+
 API
 
 /api/summary
 
 /api/test-listings
+
+/api/individual-performance
+
+/api/listing-outcomes
+
+/api/market-statistics
+
+/api/market-statistics/ingest (protected — Crexi collector only)
+
+/api/market-statistics/refresh (protected — manual refresh)
+
+/api/pipeline-growth-challenge
+
+/api/pipeline-growth-challenge/debug
+
+/api/pipeline-growth-challenge/calls (GET + POST, unauthenticated by design — see Pipeline Growth Challenge section)
 
 Health
 
@@ -382,6 +440,10 @@ On-Market / Currently Marketing
 
 Escrow/Due Diligence
 
+Agreed To (counts as active only when a date-on-market value is present)
+
+Agreed To sits between Currently Marketing and In Escrow. It is only used by one team, but is a legitimate status everywhere and should count as active for any team that uses it.
+
 Upcoming Statuses
 
 Listing Submitted to Admin
@@ -460,6 +522,10 @@ QSR Team
 
 Agents without mappings display individually.
 
+This mapping is used only by the Marketing Snapshot dashboard (listingLeader).
+
+The Pipeline Growth Challenge uses a separate, independent roster: config/pipeline-growth-roster.csv (8 teams, broader agent coverage). The two systems are intentionally kept separate and are not expected to be unified — they will only converge if the company reaches a point where there are no solo agents.
+
 ---
 
 # Project Principles
@@ -504,15 +570,27 @@ Railway remains responsible for serving current data.
 
 # Current Dashboards
 
-Completed
+Live on TVs
 
 Closed Transactions
 
 Marketing Snapshot
 
+Individual Performance
+
+Market Statistics
+
+Pipeline Growth Challenge
+
+Built, Not Yet Live
+
+Listing Outcomes (pending partner review)
+
 ---
 
 # Planned Dashboards
+
+Next priority: TBD (as of July 2026)
 
 Property Spotlight
 
@@ -529,8 +607,6 @@ Listing Pipeline
 National Listing Map
 
 Office KPIs
-
-Market Statistics
 
 Company Announcements
 
@@ -678,6 +754,16 @@ Normalization
 - Decimal values (0.50) are preserved.
 - Blank values normalize to 1.00.
 
+Transaction Fee
+
+A flat $750 per-deal fee is subtracted from gross GCI (Primary_GCI__c / Intermediary_GCI__c) before agent splits are applied. This is a real, universal fee. It is intentionally NOT applied to the Closed Transactions dashboard's GCI figure — that dashboard reports the company/team-level Trinity_Commission_Actual__c total from ContractNew__c, a different object serving a different purpose than Commission__c's per-agent net calculation. The two GCI numbers are not expected to reconcile to each other.
+
+Excluded Agents
+
+Barrett Brown and Justin Williams are hard-excluded from the GCI leaderboard (departed agents), via the EXCLUDED_AGENTS set in data/individualPerformance.js. This list is intentionally unmanaged/ad hoc — no admin workflow exists to maintain it. Edit that set directly if a departed agent still appears on screen; don't add process overhead beyond that.
+
+Note: Trinity's Salesforce org is planned for a rebuild later in 2026, which is expected to drive changes to this data model. The current approach is considered sufficient until then.
+
 Validation
 
 Trevor Short's YTD GCI was used to validate calculation logic.
@@ -720,4 +806,99 @@ Current Work
 - Reconcile remaining individual GCI values.
 - Match header styling to existing dashboards.
 - Optimize ranking layout and spacing.
+
+---
+
+# Listing Outcomes Dashboard (July 2026)
+
+Status
+
+Fully built. Not yet on TVs — pending review with partners. Likely the next dashboard to go live.
+
+Route
+
+`/listing-outcomes`
+
+Purpose
+
+Compare listing close-rate and days-on-market outcomes across two cohorts of listings launched by date-on-market.
+
+Source Object
+
+`TTL_Core__Deal_Stage_Tracker__c` (stage history per deal)
+
+Cohort Windows
+
+- Current Cohort: listings that went on-market 18 to 6 months ago.
+- Prior-Year Cohort: listings that went on-market 30 to 18 months ago.
+
+Metrics (per cohort)
+
+- New Listings Launched
+- Closed
+- Still Available (open On-Market stage, no qualifying close)
+- Close Rate
+- Average Days on Market (closed listings only)
+
+Data Reliability
+
+Deal Stage Tracker history is sound for the current ~30-month lookback window. Going back further than that would introduce gaps.
+
+---
+
+# Market Statistics Dashboard (July 2026)
+
+Status
+
+Live.
+
+Route
+
+`/market-statistics`
+
+Purpose
+
+Track Trinity's active listing count, Crexi's competitive listing count, and the 5-year U.S. Treasury yield over time, each with a 90-day trend chart.
+
+Details
+
+See MARKET_STATISTICS_SETUP.md for routes, environment variables, and the Crexi collector setup. The Crexi collector runs on a schedule via Windows Task Scheduler and is operating successfully with no manual effort required.
+
+---
+
+# Pipeline Growth Challenge (July 2026)
+
+Status
+
+Live. Currently mid-competition. This is a recurring program — Richie owns updating the competition period dates for each future round.
+
+Routes
+
+- `/pipeline-growth-challenge` — TV scoreboard
+- `/pipeline-growth-challenge/verification` — raw record-count verification table
+- `/pipeline-growth-challenge/admin` — editable weekly call-count table
+
+Purpose
+
+A gamified sales competition comparing a Baseline Period against a live Challenge Period, scored across five weighted categories, with team leaderboards and "Growth Maxxer" / "Team Anchor" callouts.
+
+Scoring (fixed, reused across future rounds)
+
+- Calls: 1 point
+- Proposals: 200 points
+- Listings: 2,000 points
+- Accepted LOIs: 2,000 points
+- Contracts: 4,000 points
+
+Team Roster
+
+Uses its own roster, config/pipeline-growth-roster.csv (8 teams), independent from config/teams.js. See Team Mapping section.
+
+Calls Data
+
+Not every agent call is logged in Salesforce Tasks, so calls for this dashboard are entered manually each week via the admin page rather than pulled automatically (unlike Individual Performance, which uses Task records directly). Accuracy matters more here because real rewards are tied to standings. Long-term goal is to unify both dashboards onto the same call-count source once the underlying data-completeness gap in Salesforce is resolved.
+
+Admin Access
+
+The call-entry endpoint (`/api/pipeline-growth-challenge/calls`) has no authentication. This is a deliberate, permanent-for-now decision (password removed 2026-07-21) — this is a fully internal system with no realistic threat model requiring auth.
 

@@ -33,7 +33,7 @@ npm run login
 npm run collect
 ```
 
-During `npm run login`, complete Crexi login and any human verification, verify the saved search loads, then close the browser. The normal collection command dynamically extracts the visible `#,### results` value and posts the current count and capture timestamp to Railway.
+During `npm run login`, complete Crexi login and any human verification, verify the saved search loads, then close the browser. The normal collection command dynamically extracts the visible `#,### properties` value from the search results header and posts the current count and capture timestamp to Railway.
 
 Schedule `crexi-collector/run-crexi-collector.cmd` once daily using Windows Task Scheduler. Run it under the same Windows account that created the browser profile.
 
@@ -61,6 +61,7 @@ Valid metric keys:
 
 ## Operational behavior
 
+- Status (July 2026): the Windows Task Scheduler job is running successfully on schedule with no manual intervention required.
 - Crexi failures are stored as failed attempts.
 - Failed attempts never overwrite the last successful count.
 - The TV page shows the capture date for the currently displayed value.
