@@ -28,6 +28,10 @@ const {
   getPipelineGrowthCallsData,
   savePipelineGrowthCalls,
 } = require("./storage/pipelineGrowthCalls");
+const {
+  getPipelineGrowthAdjustmentsData,
+  savePipelineGrowthAdjustments,
+} = require("./storage/pipelineGrowthAdjustments");
 const { saveSnapshot, saveAttempt } = require("./storage/metricStore");
 const { seedMetricHistory } = require("./storage/seedMetricHistory");
 
@@ -163,6 +167,16 @@ app.get("/api/pipeline-growth-challenge/calls", (req, res) => {
 
 app.post("/api/pipeline-growth-challenge/calls", (req, res) => {
   try { res.json({ ok: true, ...savePipelineGrowthCalls(req.body?.entries || []) }); }
+  catch (error) { res.status(400).json({ ok: false, message: error.message }); }
+});
+
+app.get("/api/pipeline-growth-challenge/adjustments", (req, res) => {
+  try { res.json({ ok: true, ...getPipelineGrowthAdjustmentsData() }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
+});
+
+app.post("/api/pipeline-growth-challenge/adjustments", (req, res) => {
+  try { res.json({ ok: true, ...savePipelineGrowthAdjustments(req.body?.entries || []) }); }
   catch (error) { res.status(400).json({ ok: false, message: error.message }); }
 });
 
@@ -344,6 +358,7 @@ app.get("/pipeline-growth-challenge/admin", (req, res) => {
       roster: getPipelineGrowthRoster(),
       weeks: getCompetitionWeeks(),
       callsData: getPipelineGrowthCallsData(),
+      adjustmentsData: getPipelineGrowthAdjustmentsData(),
     }));
   } catch (error) { res.status(500).send(`<h1>Pipeline Growth Admin Error</h1><pre>${error.message}</pre>`); }
 });

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { loadPipelineGrowthCalls } = require("../storage/pipelineGrowthCalls");
+const { loadPipelineGrowthAdjustments } = require("../storage/pipelineGrowthAdjustments");
 const {
   getSalesforceToken,
   querySalesforceAll,
@@ -190,6 +191,14 @@ function loadCalls() {
     salesforceName: row.salesforceName,
     calls: row.calls,
   }));
+}
+
+function loadAdjustments() {
+  const map = new Map();
+  for (const entry of loadPipelineGrowthAdjustments()) {
+    map.set(normalizeName(entry.salesforceName), entry.netAdjustment || 0);
+  }
+  return map;
 }
 
 function weekIndex(dateValue, periodStart) {
@@ -385,9 +394,10 @@ function applyCalls({ agents, unmatched, calls, includedWeeks }) {
   }
 }
 
-function finalizeAgents(agents, windows) {
+function finalizeAgents(agents, windows, adjustments) {
   return [...agents.values()].map((agent) => {
-    const period2Points = sumPoints(agent.period2);
+    const netAdjustment = adjustments.get(normalizeName(agent.salesforceName)) || 0;
+    const period2Points = sumPoints(agent.period2) + netAdjustment;
     const period1FullPoints = sumPoints(agent.period1Full);
     const period1Points = prorateBaseline(period1FullPoints, windows);
 
@@ -396,6 +406,7 @@ function finalizeAgents(agents, windows) {
       period1Points,
       period2Points,
       period1FullPoints,
+      netAdjustment,
       growthPct: percentageGrowth(period2Points, period1Points),
     };
   });
@@ -538,7 +549,8 @@ async function buildPipelineGrowthChallenge({ debug = false } = {}) {
 
   applyCalls({ agents, unmatched, calls, includedWeeks: includedCallWeeks });
 
-  const agentRows = finalizeAgents(agents, windows);
+  const adjustments = loadAdjustments();
+  const agentRows = finalizeAgents(agents, windows, adjustments);
   const teams = buildTeams(agentRows, windows);
 
   const result = {
