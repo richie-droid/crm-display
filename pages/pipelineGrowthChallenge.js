@@ -16,18 +16,21 @@ function pace(value) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-function calloutCard(label, agent, tone) {
-  if (!agent) {
-    return `<div class="callout ${tone}">
-      <span>${label}</span>
-      <strong>Not available yet</strong>
-    </div>`;
-  }
-
-  return `<div class="callout ${tone}">
-    <span>${label}</span>
+function rankCard(agent) {
+  return `<div class="rank-card">
     <strong>${escapeHtml(agent.displayName)}</strong>
-    <small>${escapeHtml(agent.team)} · ${pace(agent.growthPct)}</small>
+    <span>${number(agent.period2Points)}</span>
+  </div>`;
+}
+
+function rankGroup(label, agents, tone) {
+  const cards = agents.length
+    ? agents.map(rankCard).join("")
+    : `<div class="rank-card empty"><strong>Not available yet</strong></div>`;
+
+  return `<div class="rank-group ${tone}">
+    <div class="rank-group-label">${label}</div>
+    <div class="rank-cards">${cards}</div>
   </div>`;
 }
 
@@ -201,21 +204,53 @@ function renderPipelineGrowthChallengePage(data) {
       white-space: nowrap;
     }
 
-    .callouts {
+    .rank-strip {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1vw;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      gap: 1.2vw;
       margin-bottom: 1.6vh;
     }
 
-    .callout {
+    .rank-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rank-group-label {
+      margin-bottom: 0.7vh;
+      text-align: center;
+      font-size: 1.4vh;
+      font-weight: 900;
+      letter-spacing: 0.14vw;
+      text-transform: uppercase;
+    }
+
+    .rank-group.top .rank-group-label {
+      color: var(--good);
+    }
+
+    .rank-group.bottom .rank-group-label {
+      color: var(--bad);
+    }
+
+    .rank-cards {
+      flex: 1;
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 1vw;
+    }
+
+    .rank-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5vh;
       padding: 1.3vh 1.2vw;
       border: 0.16vh solid var(--line);
       border-radius: 1.4vh;
+      text-align: center;
       background:
         linear-gradient(
           135deg,
@@ -224,29 +259,30 @@ function renderPipelineGrowthChallengePage(data) {
         );
     }
 
-    .callout span {
-      color: var(--muted);
-      font-size: 1.25vh;
-      font-weight: 800;
-      letter-spacing: 0.08vw;
-      text-transform: uppercase;
-    }
-
-    .callout strong {
-      font-size: 2.3vh;
-    }
-
-    .callout small {
-      font-size: 1.6vh;
-      font-weight: 700;
-    }
-
-    .callout.grower {
+    .rank-group.top .rank-card {
       border-left: 0.3vw solid var(--good);
     }
 
-    .callout.anchor {
+    .rank-group.bottom .rank-card {
       border-left: 0.3vw solid var(--bad);
+    }
+
+    .rank-card strong {
+      font-size: 1.9vh;
+      line-height: 1.1;
+    }
+
+    .rank-card span {
+      font-size: 2.3vh;
+      font-weight: 900;
+      color: var(--white);
+    }
+
+    .rank-divider {
+      width: 0.16vw;
+      align-self: stretch;
+      margin-top: 2.1vh;
+      background: var(--line);
     }
 
     .team-grid {
@@ -503,18 +539,10 @@ function renderPipelineGrowthChallengePage(data) {
       <div class="page-title">${escapeHtml(data.title)}</div>
     </section>
 
-    <section class="callouts">
-      ${calloutCard(
-        "Growth Maxxer",
-        data.callouts?.topGrower,
-        "grower"
-      )}
-
-      ${calloutCard(
-        "Team Anchor",
-        data.callouts?.justAShower,
-        "anchor"
-      )}
+    <section class="rank-strip">
+      ${rankGroup("Top 3", data.topBottomAgents?.top3 || [], "top")}
+      <div class="rank-divider"></div>
+      ${rankGroup("Bottom 3", data.topBottomAgents?.bottom3 || [], "bottom")}
     </section>
 
     <section class="team-grid">
@@ -537,8 +565,7 @@ function renderPipelineGrowthChallengePage(data) {
           </li>
 
           <li>
-            Current Pace compares equal # of competition days from
-            Challenge Period and Baseline Period
+            Previous Points = daily average from Baseline Period * # of Days in Challenge thus far.
           </li>
 
           <li>

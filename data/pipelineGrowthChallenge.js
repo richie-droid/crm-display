@@ -147,6 +147,7 @@ function getWindows(now = new Date()) {
       start: CONFIG.period1.start,
       end: elapsedDays ? formatDate(p1EqualEnd) : null,
     },
+    period1DayCount: inclusiveDayCount(p1Start, p1End),
     period2Live: {
       start: CONFIG.period2.start,
       end: elapsedDays ? formatDate(p2DataThrough) : null,
@@ -154,6 +155,11 @@ function getWindows(now = new Date()) {
     elapsedDays,
     dataThrough: formatDate(today),
   };
+}
+
+function prorateBaseline(fullPeriodPoints, windows) {
+  if (!windows.period1DayCount) return 0;
+  return Math.round((fullPeriodPoints / windows.period1DayCount) * windows.elapsedDays);
 }
 
 function inWindow(value, window) {
@@ -214,7 +220,6 @@ function createAgentState(rosterEntry) {
     salesforceName: rosterEntry.salesforceName,
     displayName: rosterEntry.displayName,
     team: rosterEntry.team,
-    period1: { calls: 0, proposals: 0, listings: 0, lois: 0, contracts: 0 },
     period2: { calls: 0, proposals: 0, listings: 0, lois: 0, contracts: 0 },
     period1Full: { calls: 0, proposals: 0, listings: 0, lois: 0, contracts: 0 },
   };
@@ -347,7 +352,6 @@ function applyEvent({ agents, unmatched, name, date, category, windows }) {
   }
 
   if (inWindow(date, windows.period1Full)) addCount(agent, "period1Full", category);
-  if (inWindow(date, windows.period1Equal)) addCount(agent, "period1", category);
   if (inWindow(date, windows.period2Live)) addCount(agent, "period2", category);
 }
 
@@ -365,14 +369,10 @@ function applyCalls({ agents, unmatched, calls, includedWeeks }) {
       continue;
     }
 
-    const p1Index = weekIndex(row.weekStart, CONFIG.period1.start);
     const p2Index = weekIndex(row.weekStart, CONFIG.period2.start);
 
     if (inWindow(row.weekStart, CONFIG.period1)) {
       addCount(agent, "period1Full", "calls", row.calls);
-      if (p1Index >= 0 && p1Index < includedWeeks) {
-        addCount(agent, "period1", "calls", row.calls);
-      }
     }
 
     if (
@@ -385,11 +385,11 @@ function applyCalls({ agents, unmatched, calls, includedWeeks }) {
   }
 }
 
-function finalizeAgents(agents) {
+function finalizeAgents(agents, windows) {
   return [...agents.values()].map((agent) => {
-    const period1Points = sumPoints(agent.period1);
     const period2Points = sumPoints(agent.period2);
     const period1FullPoints = sumPoints(agent.period1Full);
+    const period1Points = prorateBaseline(period1FullPoints, windows);
 
     return {
       ...agent,
@@ -401,7 +401,7 @@ function finalizeAgents(agents) {
   });
 }
 
-function buildTeams(agentRows) {
+function buildTeams(agentRows, windows) {
   const teams = new Map();
 
   for (const agent of agentRows) {
@@ -409,23 +409,25 @@ function buildTeams(agentRows) {
       teams.set(agent.team, {
         team: agent.team,
         agents: [],
-        period1Points: 0,
         period2Points: 0,
         period1FullPoints: 0,
       });
     }
     const team = teams.get(agent.team);
     team.agents.push(agent);
-    team.period1Points += agent.period1Points;
     team.period2Points += agent.period2Points;
     team.period1FullPoints += agent.period1FullPoints;
   }
 
   return [...teams.values()]
-    .map((team) => ({
-      ...team,
-      growthPct: percentageGrowth(team.period2Points, team.period1Points),
-    }))
+    .map((team) => {
+      const period1Points = prorateBaseline(team.period1FullPoints, windows);
+      return {
+        ...team,
+        period1Points,
+        growthPct: percentageGrowth(team.period2Points, period1Points),
+      };
+    })
     .sort((a, b) => {
       const aGrowth = a.growthPct === null ? -Infinity : a.growthPct;
       const bGrowth = b.growthPct === null ? -Infinity : b.growthPct;
@@ -456,14 +458,15 @@ function getPipelineGrowthRoster() {
   }));
 }
 
-function getAgentCallouts(agentRows) {
-  const eligible = agentRows.filter((agent) => agent.period1Points > 0 && agent.growthPct !== null);
-  const sorted = [...eligible].sort((a, b) =>
-    b.growthPct - a.growthPct || b.period2Points - a.period2Points
+function getTopBottomAgents(agentRows) {
+  const eligible = agentRows.filter((agent) => agent.period1FullPoints > 0);
+  const sorted = [...eligible].sort(
+    (a, b) => b.period2Points - a.period2Points || a.displayName.localeCompare(b.displayName)
   );
+
   return {
-    topGrower: sorted.length ? sorted[0] : null,
-    justAShower: sorted.length ? sorted[sorted.length - 1] : null,
+    top3: sorted.slice(0, 3),
+    bottom3: sorted.slice(-3).reverse(),
   };
 }
 
@@ -535,8 +538,8 @@ async function buildPipelineGrowthChallenge({ debug = false } = {}) {
 
   applyCalls({ agents, unmatched, calls, includedWeeks: includedCallWeeks });
 
-  const agentRows = finalizeAgents(agents);
-  const teams = buildTeams(agentRows);
+  const agentRows = finalizeAgents(agents, windows);
+  const teams = buildTeams(agentRows, windows);
 
   const result = {
     title: CONFIG.title,
@@ -548,7 +551,7 @@ async function buildPipelineGrowthChallenge({ debug = false } = {}) {
       rule: "Call weeks enter both comparison periods only after Period 2 data for the matching week has been entered.",
     },
     teams,
-    callouts: getAgentCallouts(agentRows),
+    topBottomAgents: getTopBottomAgents(agentRows),
   };
 
   if (debug) {
