@@ -5,8 +5,8 @@ const {
   addUtcMonths,
   startOfUtcDay,
   formatSoqlDate,
-  RECENCY_BUFFER_MONTHS,
   DEFAULT_WINDOW_MONTHS,
+  parseBufferMonths,
 } = require("./listingOutcomes");
 
 const TRACKING_FLOOR = new Date(Date.UTC(2023, 4, 1));
@@ -26,8 +26,8 @@ function getQuarterlyCheckpoints(now = new Date()) {
   return checkpoints;
 }
 
-function buildCheckpointWindow(checkpointDate, windowMonths) {
-  const endExclusive = addUtcMonths(checkpointDate, -RECENCY_BUFFER_MONTHS);
+function buildCheckpointWindow(checkpointDate, windowMonths, bufferMonths) {
+  const endExclusive = addUtcMonths(checkpointDate, -bufferMonths);
   const start = addUtcMonths(endExclusive, -windowMonths);
 
   return {
@@ -38,11 +38,13 @@ function buildCheckpointWindow(checkpointDate, windowMonths) {
   };
 }
 
-async function buildListingOutcomeTrends() {
+async function buildListingOutcomeTrends({ bufferMonths } = {}) {
+  const resolvedBufferMonths = parseBufferMonths(bufferMonths);
+
   const token = await getSalesforceToken();
   const checkpoints = getQuarterlyCheckpoints();
   const windows = checkpoints.map((checkpoint) =>
-    buildCheckpointWindow(checkpoint, DEFAULT_WINDOW_MONTHS)
+    buildCheckpointWindow(checkpoint, DEFAULT_WINDOW_MONTHS, resolvedBufferMonths)
   );
 
   const overallStart = windows[0].start;
@@ -69,7 +71,7 @@ async function buildListingOutcomeTrends() {
   return {
     generatedAt: new Date().toISOString(),
     windowMonths: DEFAULT_WINDOW_MONTHS,
-    recencyBufferMonths: RECENCY_BUFFER_MONTHS,
+    recencyBufferMonths: resolvedBufferMonths,
     trackerRecordCount,
     uniqueDealCount,
     points,

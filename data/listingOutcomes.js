@@ -23,6 +23,8 @@ const STAGES = {
 
 const RECENCY_BUFFER_MONTHS = 9;
 const DEFAULT_WINDOW_MONTHS = 12;
+const MIN_BUFFER_MONTHS = 1;
+const MAX_BUFFER_MONTHS = 24;
 
 function addUtcMonths(date, months) {
   const result = new Date(date.getTime());
@@ -75,10 +77,10 @@ function formatWindowLabel(start, endExclusive) {
   return `${formatter.format(start)} - ${formatter.format(endInclusive)}`;
 }
 
-function getCohortWindows(anchorDate = new Date(), windowMonths = DEFAULT_WINDOW_MONTHS) {
+function getCohortWindows(anchorDate = new Date(), windowMonths = DEFAULT_WINDOW_MONTHS, bufferMonths = RECENCY_BUFFER_MONTHS) {
   const anchor = startOfUtcDay(anchorDate);
 
-  const currentEnd = addUtcMonths(anchor, -RECENCY_BUFFER_MONTHS);
+  const currentEnd = addUtcMonths(anchor, -bufferMonths);
   const currentStart = addUtcMonths(currentEnd, -windowMonths);
   const priorEnd = currentStart;
   const priorStart = addUtcMonths(priorEnd, -windowMonths);
@@ -115,6 +117,12 @@ function parseWindowMonths(value) {
   const num = Number(value);
   if (!Number.isFinite(num) || !Number.isInteger(num)) return DEFAULT_WINDOW_MONTHS;
   return Math.min(60, Math.max(1, num));
+}
+
+function parseBufferMonths(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || !Number.isInteger(num)) return RECENCY_BUFFER_MONTHS;
+  return Math.min(MAX_BUFFER_MONTHS, Math.max(MIN_BUFFER_MONTHS, num));
 }
 
 
@@ -401,12 +409,13 @@ async function fetchDealOutcomes(token, rangeStart, rangeEndExclusive) {
   };
 }
 
-async function buildListingOutcomesDashboard({ anchorDate, windowMonths } = {}) {
+async function buildListingOutcomesDashboard({ anchorDate, windowMonths, bufferMonths } = {}) {
   const resolvedAnchor = parseAnchorDate(anchorDate);
   const resolvedWindowMonths = parseWindowMonths(windowMonths);
+  const resolvedBufferMonths = parseBufferMonths(bufferMonths);
 
   const token = await getSalesforceToken();
-  const windows = getCohortWindows(resolvedAnchor, resolvedWindowMonths);
+  const windows = getCohortWindows(resolvedAnchor, resolvedWindowMonths, resolvedBufferMonths);
 
   const { outcomes, trackerRecordCount, uniqueDealCount } = await fetchDealOutcomes(
     token,
@@ -429,7 +438,7 @@ async function buildListingOutcomesDashboard({ anchorDate, windowMonths } = {}) 
     dataThrough: new Date().toISOString().slice(0, 10),
     anchorDate: formatSoqlDate(startOfUtcDay(resolvedAnchor)),
     windowMonths: resolvedWindowMonths,
-    recencyBufferMonths: RECENCY_BUFFER_MONTHS,
+    recencyBufferMonths: resolvedBufferMonths,
     trackerRecordCount,
     uniqueDealCount,
     current,
@@ -448,4 +457,7 @@ module.exports = {
   formatSoqlDate,
   RECENCY_BUFFER_MONTHS,
   DEFAULT_WINDOW_MONTHS,
+  MIN_BUFFER_MONTHS,
+  MAX_BUFFER_MONTHS,
+  parseBufferMonths,
 };

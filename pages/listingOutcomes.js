@@ -456,11 +456,16 @@ function renderListingOutcomesPage(data) {
           <input type="number" name="windowMonths" min="1" max="60" step="1" value="${data.windowMonths}" />
         </label>
 
+        <label>
+          <span>Buffer Period (months)</span>
+          <input type="number" name="bufferMonths" min="1" max="24" step="1" value="${data.recencyBufferMonths}" />
+        </label>
+
         <button type="submit">Update</button>
       </form>
 
       <div class="controls-note">
-        Recency buffer fixed at ${data.recencyBufferMonths} months (excludes listings too recent to have had time to close). Prior cohort is the same window length immediately preceding the current one.
+        Buffer period excludes listings too recent to have had time to close. Prior cohort is the same window length immediately preceding the current one.
         &nbsp;<a href="/listing-outcomes/trends">View quarterly trends &rarr;</a>
       </div>
     </section>

@@ -143,6 +143,7 @@ app.get("/api/listing-outcomes", async (req, res) => {
       ...(await buildListingOutcomesDashboard({
         anchorDate: req.query.anchorDate,
         windowMonths: req.query.windowMonths,
+        bufferMonths: req.query.bufferMonths,
       })),
     });
   } catch (error) {
@@ -159,7 +160,9 @@ app.get("/api/listing-outcomes/trends", async (req, res) => {
   try {
     res.json({
       ok: true,
-      ...(await buildListingOutcomeTrends()),
+      ...(await buildListingOutcomeTrends({
+        bufferMonths: req.query.bufferMonths,
+      })),
     });
   } catch (error) {
     console.error("Listing outcome trends error:", error);
@@ -352,6 +355,7 @@ app.get("/listing-outcomes", async (req, res) => {
         await buildListingOutcomesDashboard({
           anchorDate: req.query.anchorDate,
           windowMonths: req.query.windowMonths,
+          bufferMonths: req.query.bufferMonths,
         })
       )
     );
@@ -370,7 +374,9 @@ app.get("/listing-outcomes/trends", async (req, res) => {
   try {
     res.send(
       renderListingOutcomeTrendsPage(
-        await buildListingOutcomeTrends()
+        await buildListingOutcomeTrends({
+          bufferMonths: req.query.bufferMonths,
+        })
       )
     );
   } catch (error) {

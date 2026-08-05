@@ -117,6 +117,59 @@ function renderListingOutcomeTrendsPage(data) {
       color: var(--blue);
     }
 
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 1.2vw;
+      padding: 1.2vh 1.3vw;
+      border: 0.15vh solid rgba(78, 146, 199, 0.5);
+      border-radius: 1.2vh;
+      background: rgba(2, 7, 10, 0.54);
+    }
+
+    .controls-form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 1.2vw;
+    }
+
+    .controls-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4vh;
+      font-size: 1.3vh;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.08vw;
+      font-weight: 800;
+    }
+
+    .controls-form input {
+      font: inherit;
+      font-size: 1.6vh;
+      padding: 0.8vh 0.8vw;
+      border: 0.14vh solid rgba(78, 146, 199, 0.5);
+      border-radius: 0.7vh;
+      background: rgba(2, 7, 10, 0.6);
+      color: var(--white);
+    }
+
+    .controls-form button {
+      font: inherit;
+      font-size: 1.5vh;
+      font-weight: 800;
+      padding: 0.9vh 1.4vw;
+      border: none;
+      border-radius: 0.7vh;
+      background: var(--blue);
+      color: var(--black);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06vw;
+    }
+
     .chart-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -184,6 +237,17 @@ function renderListingOutcomeTrendsPage(data) {
       </div>
 
       <div class="page-title">Listing Outcome Trends</div>
+    </div>
+
+    <div class="controls-bar">
+      <form method="GET" action="/listing-outcomes/trends" class="controls-form">
+        <label>
+          <span>Buffer Period (months)</span>
+          <input type="number" name="bufferMonths" min="1" max="24" step="1" value="${data.recencyBufferMonths}" />
+        </label>
+
+        <button type="submit">Update</button>
+      </form>
     </div>
 
     <div class="methodology">
