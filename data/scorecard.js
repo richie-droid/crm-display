@@ -127,7 +127,15 @@ async function buildScorecard({ anchorDate } = {}) {
   const token = await getSalesforceToken();
   const { instance_url: instanceUrl, access_token: accessToken } = token;
 
-  const [closedRecords, newContractRecords, droppedRecords, offerHistory] = await Promise.all([
+  const [
+    closedRecords,
+    newContractRecords,
+    droppedRecords,
+    offerHistory,
+    newListingRecords,
+    submittedOfferRecords,
+    proposalRecords,
+  ] = await Promise.all([
     // Closed: whole YTD (for cumulative) through the current week's end (for flow).
     // GCI uses the contract-commission field (matches the sheet; actual runs ~2% low).
     fetchByDateRange(instanceUrl, accessToken, "actual_close_date__c", `${year}-01-01`, spanEnd, "Trinity_Contract_Commission_Dollars_form__c"),
@@ -144,6 +152,32 @@ async function buildScorecard({ anchorDate } = {}) {
          AND CreatedDate >= ${weeks[0]}T00:00:00Z
          AND CreatedDate <= ${spanEnd}T23:59:59Z`
     ),
+    // New listings: Listing-type deals by agreement-signed date.
+    querySalesforceAll(
+      instanceUrl,
+      accessToken,
+      `SELECT Listing_Agreement_Signed__c FROM TTL_Core__Deal__c
+       WHERE RecordType.Name = 'Listing'
+         AND Listing_Agreement_Signed__c >= ${weeks[0]}
+         AND Listing_Agreement_Signed__c <= ${spanEnd}`
+    ),
+    // Submitted LOIs: offers by date submitted.
+    querySalesforceAll(
+      instanceUrl,
+      accessToken,
+      `SELECT TTL_Core__Offer_Date__c FROM TTL_Core__Offer__c
+       WHERE TTL_Core__Offer_Date__c >= ${weeks[0]}
+         AND TTL_Core__Offer_Date__c <= ${spanEnd}`
+    ),
+    // Proposals: new Proposal-type deals by created date.
+    querySalesforceAll(
+      instanceUrl,
+      accessToken,
+      `SELECT CreatedDate FROM TTL_Core__Deal__c
+       WHERE RecordType.Name = 'Proposal'
+         AND CreatedDate >= ${weeks[0]}T00:00:00Z
+         AND CreatedDate <= ${spanEnd}T23:59:59Z`
+    ),
   ]);
 
   const closedCum = cumulativeByWeek(closedRecords, "actual_close_date__c", "Trinity_Contract_Commission_Dollars_form__c", weeks);
@@ -151,6 +185,9 @@ async function buildScorecard({ anchorDate } = {}) {
   const newContracts = flowByWeek(newContractRecords, "Contract_Effective_Date__c", weeks);
   const terminations = flowByWeek(droppedRecords, "Date_Dropped__c", weeks);
   const acceptedLois = acceptedLoisByWeek(offerHistory.records || [], weeks);
+  const newListings = flowByWeek(newListingRecords.records || [], "Listing_Agreement_Signed__c", weeks);
+  const submittedLois = flowByWeek(submittedOfferRecords.records || [], "TTL_Core__Offer_Date__c", weeks);
+  const proposals = flowByWeek(proposalRecords.records || [], "CreatedDate", weeks);
   const escrow = escrowByWeek(weeks);
 
   const currentTotalContracts = weeks.map((_, i) =>
@@ -170,10 +207,15 @@ async function buildScorecard({ anchorDate } = {}) {
     { section: "Company Trends", label: "Escrow Contracts", format: "int", values: escrow.map((e) => e.deals) },
 
     // Weekly Activity Levels (sheet order)
+    { section: "Weekly Activity Levels", label: "New Listings", format: "int", values: newListings },
+    { section: "Weekly Activity Levels", label: "Submitted LOIs", format: "int", values: submittedLois },
     { section: "Weekly Activity Levels", label: "Accepted LOIs", format: "int", values: acceptedLois },
     { section: "Weekly Activity Levels", label: "New Contracts", format: "int", values: newContracts },
     { section: "Weekly Activity Levels", label: "Closings", format: "int", values: closings },
     { section: "Weekly Activity Levels", label: "Terminations", format: "int", values: terminations },
+
+    // Getting Inventory
+    { section: "Getting Inventory", label: "Proposals", format: "int", values: proposals },
   ];
 
   return {
