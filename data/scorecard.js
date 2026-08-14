@@ -115,12 +115,13 @@ async function buildScorecard({ anchorDate } = {}) {
 
   const [closedRecords, newContractRecords] = await Promise.all([
     // Closed: whole YTD (for cumulative) through the current week's end (for flow).
-    fetchByDateRange(instanceUrl, accessToken, "actual_close_date__c", `${year}-01-01`, spanEnd, "Trinity_Commission_Actual__c"),
+    // GCI uses the contract-commission field (matches the sheet; actual runs ~2% low).
+    fetchByDateRange(instanceUrl, accessToken, "actual_close_date__c", `${year}-01-01`, spanEnd, "Trinity_Contract_Commission_Dollars_form__c"),
     // New contracts: just the 5-week span, by effective date.
     fetchByDateRange(instanceUrl, accessToken, "Contract_Effective_Date__c", weeks[0], spanEnd),
   ]);
 
-  const closedCum = cumulativeByWeek(closedRecords, "actual_close_date__c", "Trinity_Commission_Actual__c", weeks);
+  const closedCum = cumulativeByWeek(closedRecords, "actual_close_date__c", "Trinity_Contract_Commission_Dollars_form__c", weeks);
   const closings = flowByWeek(closedRecords, "actual_close_date__c", weeks);
   const newContracts = flowByWeek(newContractRecords, "Contract_Effective_Date__c", weeks);
   const escrow = escrowByWeek(weeks);
@@ -128,9 +129,14 @@ async function buildScorecard({ anchorDate } = {}) {
   const currentTotalContracts = weeks.map((_, i) =>
     escrow[i].deals === null ? null : closedCum[i].count + escrow[i].deals
   );
+  const currentTotalGci = weeks.map((_, i) =>
+    escrow[i].gci === null ? null : Math.round((closedCum[i].gci + escrow[i].gci) * 100) / 100
+  );
 
   const metrics = [
-    // Company Trends
+    // Company Trends (sheet order)
+    { section: "Company Trends", label: "Current Total GCI", format: "money", values: currentTotalGci },
+    { section: "Company Trends", label: "Closed GCI", format: "money", values: closedCum.map((c) => c.gci) },
     { section: "Company Trends", label: "Escrow GCI", format: "money", values: escrow.map((e) => e.gci) },
     { section: "Company Trends", label: "Current Total Contracts", format: "int", values: currentTotalContracts },
     { section: "Company Trends", label: "Closed Contracts", format: "int", values: closedCum.map((c) => c.count) },
