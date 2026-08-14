@@ -13,6 +13,8 @@ const {
   getEscrowSnapshotsData,
   saveEscrowSnapshots,
 } = require("./storage/escrowSnapshots");
+const { buildScorecard } = require("./data/scorecard");
+const { renderScorecardPage } = require("./pages/scorecard");
 const { buildListingsDashboard } = require("./data/listings");
 const { renderListingsPage } = require("./pages/listings");
 const {
@@ -368,6 +370,22 @@ app.get("/closed-production", async (req, res) => {
       .send(
         `<h1>Closed Transactions Dashboard Error</h1><pre>${error.message}</pre>`
       );
+  }
+});
+
+app.get("/api/scorecard", async (req, res) => {
+  try {
+    res.json({ ok: true, ...(await buildScorecard({ anchorDate: req.query.anchorDate })) });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+app.get("/scorecard", async (req, res) => {
+  try {
+    res.send(renderScorecardPage(await buildScorecard({ anchorDate: req.query.anchorDate })));
+  } catch (error) {
+    res.status(500).send(`<h1>Weekly Scorecard Error</h1><pre>${error.message}</pre>`);
   }
 });
 
