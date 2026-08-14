@@ -42,7 +42,7 @@ function renderComparison(label, delta) {
 function renderEscrowSnapshotPage(dashboard) {
   const { current, prior, comparison, hasSnapshots } = dashboard;
 
-  const priorLabel = prior ? prior.label : "No Snapshot Yet";
+  const priorLabel = prior ? "This Time Last Year" : "No Snapshot Yet";
   const priorDeals = prior ? prior.deals.toLocaleString("en-US") : "—";
   const priorGci = prior ? formatCompactCurrency(prior.gci, 2) : "—";
 
