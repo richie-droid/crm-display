@@ -7,25 +7,16 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-function renderRow(entry) {
-  const weekEnding = entry ? entry.weekEnding : "";
-  const deals = entry ? entry.deals : "";
-  const gci = entry ? entry.gci : "";
+function formatCurrency(value) {
+  return "$" + Math.round(Number(value || 0)).toLocaleString("en-US");
+}
 
-  return `<tr class="snapshot-row">
-    <td><input class="date-input" type="date" value="${escapeHtml(weekEnding)}" aria-label="Week ending date" /></td>
-    <td><input class="deals-input" type="number" min="0" step="1" inputmode="numeric" value="${escapeHtml(deals)}" aria-label="Deals in escrow" /></td>
-    <td><input class="gci-input" type="number" min="0" step="0.01" inputmode="decimal" value="${escapeHtml(gci)}" aria-label="Escrow GCI" /></td>
-    <td class="remove-cell"><button type="button" class="remove-btn" title="Remove row">✕</button></td>
-  </tr>`;
+function round2(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
 }
 
 function renderEscrowSnapshotAdminPage({ snapshotsData, current }) {
   const entries = snapshotsData?.entries || [];
-  const rows = entries.length
-    ? entries.map((entry) => renderRow(entry)).join("")
-    : renderRow(null);
-
   const live = current || { deals: 0, gci: 0, volume: 0, contractCount: 0 };
   const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -50,43 +41,62 @@ function renderEscrowSnapshotAdminPage({ snapshotsData, current }) {
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
-    .page { padding: 24px; max-width: 760px; }
-    h1 { margin: 0 0 6px; font-size: 30px; }
+    .page { padding: 24px; max-width: 1100px; }
+    h1 { margin: 0 0 6px; font-size: 28px; }
     .subtitle, .updated { color: var(--muted); font-size: 14px; }
-    .live {
-      margin: 16px 0 18px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: var(--panel);
-      padding: 14px 16px;
-    }
-    .live-title { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
-    .live-stats { display: flex; gap: 26px; flex-wrap: wrap; align-items: center; }
-    .live-stat b { font-size: 22px; }
-    .live-stat span { color: var(--muted); font-size: 12px; display: block; text-transform: uppercase; letter-spacing: .04em; }
-    .actions { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; flex-wrap: wrap; }
-    button {
-      border: 0; border-radius: 7px; background: var(--accent); color: #06121b;
-      cursor: pointer; font-weight: 700; padding: 11px 16px;
-    }
-    button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
-    button:disabled { opacity: .55; cursor: wait; }
-    .status { min-height: 20px; margin: 10px 0; color: var(--muted); }
+    .updated { margin-top: 4px; }
+    .status { min-height: 20px; margin: 12px 0 4px; color: var(--muted); font-size: 14px; }
     .status.success { color: var(--success); }
     .status.error { color: var(--danger); }
-    table { border-collapse: separate; border-spacing: 0; width: 100%; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
-    th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; }
-    th { background: #24313d; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-    tbody tr:nth-child(even) td { background: var(--panel-2); }
-    tbody tr:last-child td { border-bottom: none; }
-    input { border: 1px solid transparent; border-radius: 5px; background: #0f1820; color: var(--text); font: inherit; padding: 9px 8px; }
-    input:hover, input:focus { border-color: var(--accent); outline: none; }
-    .date-input { width: 170px; }
-    .deals-input { width: 110px; text-align: center; }
-    .gci-input { width: 150px; text-align: right; }
-    .remove-cell { text-align: center; width: 44px; }
-    .remove-btn { background: transparent; color: var(--danger); font-size: 16px; padding: 6px 8px; }
-    .legend { margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 22px; align-items: start; margin-top: 14px; }
+    .panel { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--line); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; justify-content: space-between; align-items: baseline; }
+    .panel-head .count { color: var(--text); font-weight: 700; }
+
+    /* Left: add / edit form */
+    .add-panel { position: sticky; top: 24px; }
+    .form-body { padding: 16px 18px 18px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+    .field input { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #0f1820; color: var(--text); font: inherit; padding: 10px 10px; }
+    .field input:hover, .field input:focus { border-color: var(--accent); outline: none; }
+    .form-actions { display: flex; gap: 10px; margin-top: 4px; }
+    button { border: 0; border-radius: 7px; background: var(--accent); color: #06121b; cursor: pointer; font-weight: 700; padding: 11px 16px; font: inherit; }
+    button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); font-weight: 600; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .form-actions button { flex: 1; }
+
+    .live { margin: 4px 18px 16px; border: 1px dashed var(--line); border-radius: 9px; padding: 12px 14px; }
+    .live-title { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+    .live-stats { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 10px; }
+    .live-stat b { font-size: 18px; display: block; }
+    .live-stat span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+    .live button { width: 100%; }
+    .edit-banner { display: none; margin: 0 18px 12px; padding: 9px 12px; border-radius: 8px; background: rgba(78,146,199,.16); border: 1px solid var(--accent); color: var(--text); font-size: 13px; }
+    .edit-banner.active { display: block; }
+
+    /* Right: existing snapshots grouped by month/year */
+    .list-body { padding: 8px 0 10px; max-height: calc(100vh - 220px); overflow: auto; }
+    .month-header { position: sticky; top: 0; background: #24313d; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding: 9px 18px; border-bottom: 1px solid var(--line); z-index: 2; }
+    .month-header .m-count { float: right; text-transform: none; letter-spacing: 0; }
+    .snap-row { display: grid; grid-template-columns: 96px 1fr 1fr auto; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid rgba(52,68,84,.55); }
+    .snap-row:hover { background: var(--panel-2); }
+    .snap-date { font-weight: 700; }
+    .snap-metric b { font-size: 17px; }
+    .snap-metric span { color: var(--muted); font-size: 11px; margin-left: 5px; text-transform: uppercase; }
+    .snap-actions { display: flex; gap: 4px; }
+    button.link { background: transparent; border: 0; padding: 6px 8px; font-weight: 600; font-size: 13px; }
+    button.link.edit-btn { color: var(--accent); }
+    button.link.remove-btn { color: var(--danger); }
+    .empty { padding: 28px 18px; color: var(--muted); text-align: center; }
+
+    .legend { margin-top: 14px; color: var(--muted); font-size: 12px; line-height: 1.5; max-width: 760px; }
+    @media (max-width: 820px) {
+      .layout { grid-template-columns: 1fr; }
+      .add-panel { position: static; }
+      .list-body { max-height: none; }
+    }
   </style>
 </head>
 <body>
@@ -94,124 +104,237 @@ function renderEscrowSnapshotAdminPage({ snapshotsData, current }) {
     <h1>Deals In Escrow — Weekly Snapshots</h1>
     <div class="subtitle">Manual weekly history. GCI is Trinity contract commission (projected). Volume was never tracked, so it is not entered here.</div>
     <div class="updated">Last saved: <span id="updatedAt">${escapeHtml(snapshotsData?.updatedAt || "Never")}</span></div>
-
-    <div class="live">
-      <div class="live-title">Current live escrow (from Contracts, right now)</div>
-      <div class="live-stats">
-        <div class="live-stat"><b id="liveDeals">${escapeHtml(live.deals)}</b><span>Deals</span></div>
-        <div class="live-stat"><b>${escapeHtml(formatCurrency(live.volume))}</b><span>Volume</span></div>
-        <div class="live-stat"><b id="liveGci">${escapeHtml(round2(live.gci))}</b><span>GCI $</span></div>
-        <button type="button" class="secondary" id="captureBtn">Add this week from live</button>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button type="button" id="addRowBtn" class="secondary">Add blank row</button>
-      <button type="button" id="saveBtn">Save Snapshots</button>
-    </div>
     <div id="status" class="status"></div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Week Ending</th>
-          <th>Deals</th>
-          <th>GCI ($)</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="rows">${rows}</tbody>
-    </table>
+    <div class="layout">
+      <!-- LEFT: add / edit -->
+      <section class="panel add-panel">
+        <div class="panel-head"><span id="formTitle">Add New Snapshot</span></div>
+
+        <div class="live">
+          <div class="live-title">Current live escrow (from Contracts)</div>
+          <div class="live-stats">
+            <div class="live-stat"><b>${escapeHtml(live.deals)}</b><span>Deals</span></div>
+            <div class="live-stat"><b>${escapeHtml(formatCurrency(live.volume))}</b><span>Volume</span></div>
+            <div class="live-stat"><b>${escapeHtml(round2(live.gci))}</b><span>GCI $</span></div>
+          </div>
+          <button type="button" class="secondary" id="useLiveBtn">Fill form with current live numbers</button>
+        </div>
+
+        <div class="edit-banner" id="editBanner"></div>
+
+        <div class="form-body">
+          <div class="field">
+            <label for="fDate">Week Ending</label>
+            <input type="date" id="fDate" />
+          </div>
+          <div class="field">
+            <label for="fDeals">Deals in Escrow</label>
+            <input type="number" id="fDeals" min="0" step="1" inputmode="numeric" placeholder="e.g. 55" />
+          </div>
+          <div class="field">
+            <label for="fGci">Escrow GCI ($)</label>
+            <input type="number" id="fGci" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 2500000" />
+          </div>
+          <div class="form-actions">
+            <button type="button" id="saveBtn">Save Snapshot</button>
+            <button type="button" class="secondary" id="clearBtn">Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: existing snapshots -->
+      <section class="panel">
+        <div class="panel-head"><span>Existing Snapshots</span><span class="count" id="count">0</span></div>
+        <div class="list-body" id="list"></div>
+      </section>
+    </div>
 
     <div class="legend">
       One row per week. The TV dashboard compares the current live numbers to the snapshot nearest 52 weeks ago.
-      Blank rows (no deals and no GCI) are dropped on save. Editing a date that already exists overwrites that week.
+      Saving a date that already exists overwrites that week. Every add, edit, and remove saves immediately.
     </div>
   </main>
 
   <script>
     const TODAY = ${JSON.stringify(todayIso)};
     const LIVE = { deals: ${Number(live.deals) || 0}, gci: ${Number(live.gci) || 0} };
-    const rowsEl = document.getElementById("rows");
+    let entries = ${JSON.stringify(entries)};
+    let editingOriginal = null;
+
     const statusEl = document.getElementById("status");
     const updatedAtEl = document.getElementById("updatedAt");
+    const listEl = document.getElementById("list");
+    const countEl = document.getElementById("count");
+    const fDate = document.getElementById("fDate");
+    const fDeals = document.getElementById("fDeals");
+    const fGci = document.getElementById("fGci");
     const saveBtn = document.getElementById("saveBtn");
+    const formTitle = document.getElementById("formTitle");
+    const editBanner = document.getElementById("editBanner");
 
     function setStatus(message, type = "") {
       statusEl.textContent = message;
       statusEl.className = "status " + type;
     }
 
-    function rowTemplate(date, deals, gci) {
-      const tr = document.createElement("tr");
-      tr.className = "snapshot-row";
-      tr.innerHTML =
-        '<td><input class="date-input" type="date" aria-label="Week ending date" /></td>' +
-        '<td><input class="deals-input" type="number" min="0" step="1" inputmode="numeric" aria-label="Deals in escrow" /></td>' +
-        '<td><input class="gci-input" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Escrow GCI" /></td>' +
-        '<td class="remove-cell"><button type="button" class="remove-btn" title="Remove row">\\u2715</button></td>';
-      tr.querySelector(".date-input").value = date || "";
-      tr.querySelector(".deals-input").value = (deals ?? "") === "" ? "" : deals;
-      tr.querySelector(".gci-input").value = (gci ?? "") === "" ? "" : gci;
-      return tr;
+    function fmtMonth(ym) {
+      const [y, m] = ym.split("-").map(Number);
+      return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
+        .format(new Date(Date.UTC(y, m - 1, 1)));
+    }
+    function fmtDay(iso) {
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+        .format(new Date(Date.UTC(y, m - 1, d)));
+    }
+    function fmtMoney(n) { return "$" + Math.round(Number(n || 0)).toLocaleString("en-US"); }
+
+    function renderList() {
+      const sorted = entries.slice().sort((a, b) => b.weekEnding.localeCompare(a.weekEnding));
+      countEl.textContent = sorted.length;
+
+      if (!sorted.length) {
+        listEl.innerHTML = '<div class="empty">No snapshots yet. Add your first one on the left.</div>';
+        return;
+      }
+
+      const groups = new Map();
+      for (const e of sorted) {
+        const ym = e.weekEnding.slice(0, 7);
+        if (!groups.has(ym)) groups.set(ym, []);
+        groups.get(ym).push(e);
+      }
+
+      let html = "";
+      for (const [ym, rows] of groups) {
+        html += '<div class="month-header">' + fmtMonth(ym) +
+          '<span class="m-count">' + rows.length + (rows.length === 1 ? " week" : " weeks") + '</span></div>';
+        for (const e of rows) {
+          html +=
+            '<div class="snap-row">' +
+              '<div class="snap-date">' + fmtDay(e.weekEnding) + '</div>' +
+              '<div class="snap-metric"><b>' + Number(e.deals).toLocaleString("en-US") + '</b><span>deals</span></div>' +
+              '<div class="snap-metric"><b>' + fmtMoney(e.gci) + '</b><span>gci</span></div>' +
+              '<div class="snap-actions">' +
+                '<button type="button" class="link edit-btn" data-week="' + e.weekEnding + '">Edit</button>' +
+                '<button type="button" class="link remove-btn" data-week="' + e.weekEnding + '">Remove</button>' +
+              '</div>' +
+            '</div>';
+        }
+      }
+      listEl.innerHTML = html;
     }
 
-    rowsEl.addEventListener("click", (event) => {
-      if (event.target.classList.contains("remove-btn")) {
-        event.target.closest("tr").remove();
-      }
+    async function persist(newEntries) {
+      const res = await fetch("/api/escrow-snapshot/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entries: newEntries }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Save failed");
+      entries = result.entries;
+      updatedAtEl.textContent = result.updatedAt;
+      renderList();
+      return result;
+    }
+
+    function exitEditMode() {
+      editingOriginal = null;
+      formTitle.textContent = "Add New Snapshot";
+      editBanner.className = "edit-banner";
+      editBanner.textContent = "";
+    }
+
+    function clearForm() {
+      fDate.value = "";
+      fDeals.value = "";
+      fGci.value = "";
+      exitEditMode();
+    }
+
+    document.getElementById("useLiveBtn").addEventListener("click", () => {
+      fDate.value = TODAY;
+      fDeals.value = LIVE.deals;
+      fGci.value = LIVE.gci;
+      setStatus("Filled the form with the current live numbers. Review the week-ending date, then Save.", "");
+      fDate.focus();
     });
 
-    document.getElementById("addRowBtn").addEventListener("click", () => {
-      rowsEl.appendChild(rowTemplate("", "", ""));
-    });
-
-    document.getElementById("captureBtn").addEventListener("click", () => {
-      rowsEl.insertBefore(rowTemplate(TODAY, LIVE.deals, LIVE.gci), rowsEl.firstChild);
-      setStatus("Added a row from the current live numbers. Review the date, then Save.", "");
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      clearForm();
+      setStatus("");
     });
 
     saveBtn.addEventListener("click", async () => {
-      const entries = [...document.querySelectorAll(".snapshot-row")]
-        .map((row) => ({
-          weekEnding: row.querySelector(".date-input").value.trim(),
-          deals: row.querySelector(".deals-input").value.trim(),
-          gci: row.querySelector(".gci-input").value.trim(),
-        }))
-        .filter((e) => e.weekEnding || e.deals || e.gci);
+      const date = fDate.value.trim();
+      const dealsRaw = fDeals.value.trim();
+      const gciRaw = fGci.value.trim();
 
-      const badDate = entries.find((e) => !/^\\d{4}-\\d{2}-\\d{2}$/.test(e.weekEnding));
-      if (badDate) { setStatus("Every row needs a valid week-ending date.", "error"); return; }
+      if (!date) { setStatus("Pick a week-ending date.", "error"); return; }
+      if (dealsRaw === "" && gciRaw === "") { setStatus("Enter deals and/or GCI.", "error"); return; }
+
+      const deals = dealsRaw === "" ? 0 : Number(dealsRaw);
+      const gci = gciRaw === "" ? 0 : Number(gciRaw);
+      if (!Number.isInteger(deals) || deals < 0) { setStatus("Deals must be a whole number.", "error"); return; }
+      if (!Number.isFinite(gci) || gci < 0) { setStatus("GCI must be a non-negative number.", "error"); return; }
+
+      // Upsert: drop any entry on the target date (and the original date if editing), then add.
+      const working = entries.filter(
+        (e) => e.weekEnding !== date && e.weekEnding !== editingOriginal
+      );
+      working.push({ weekEnding: date, deals, gci });
 
       saveBtn.disabled = true;
       setStatus("Saving...");
       try {
-        const res = await fetch("/api/escrow-snapshot/snapshots", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entries }),
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.message || "Save failed");
-        updatedAtEl.textContent = result.updatedAt;
-        setStatus("Saved " + result.entries.length + " weekly snapshots. The dashboard will use them immediately.", "success");
+        const wasEditing = editingOriginal !== null;
+        await persist(working);
+        clearForm();
+        setStatus(wasEditing ? "Updated the snapshot." : "Added the snapshot.", "success");
       } catch (error) {
         setStatus(error.message, "error");
       } finally {
         saveBtn.disabled = false;
       }
     });
+
+    listEl.addEventListener("click", async (event) => {
+      const week = event.target.dataset.week;
+      if (!week) return;
+
+      if (event.target.classList.contains("edit-btn")) {
+        const entry = entries.find((e) => e.weekEnding === week);
+        if (!entry) return;
+        fDate.value = entry.weekEnding;
+        fDeals.value = entry.deals;
+        fGci.value = entry.gci;
+        editingOriginal = entry.weekEnding;
+        formTitle.textContent = "Edit Snapshot";
+        editBanner.className = "edit-banner active";
+        editBanner.textContent = "Editing week of " + fmtDay(entry.weekEnding) + ". Change the date to move it to a different week.";
+        setStatus("");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+
+      if (event.target.classList.contains("remove-btn")) {
+        if (!confirm("Remove the snapshot for week of " + fmtDay(week) + "?")) return;
+        try {
+          await persist(entries.filter((e) => e.weekEnding !== week));
+          if (editingOriginal === week) clearForm();
+          setStatus("Removed the snapshot.", "success");
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      }
+    });
+
+    renderList();
   </script>
 </body>
 </html>`;
-}
-
-function formatCurrency(value) {
-  return "$" + Math.round(Number(value || 0)).toLocaleString("en-US");
-}
-
-function round2(value) {
-  return Math.round(Number(value || 0) * 100) / 100;
 }
 
 module.exports = { renderEscrowSnapshotAdminPage };
