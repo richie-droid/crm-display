@@ -92,7 +92,7 @@ function renderScorecardPage(data) {
 <body>
   <main class="page">
     <h1>Weekly Scorecard</h1>
-    <div class="subtitle">Current week and the previous four, rebuilt live from Salesforce. Columns are dated by each week's Monday (beginning-of-week basis).</div>
+    <div class="subtitle">Current week and the previous four, rebuilt live from Salesforce. Columns are dated by each week's Monday.</div>
     <table>
       <thead>
         <tr>
