@@ -37,3 +37,6 @@ storage/data/metric-snapshots-backup.json
 # Logs
 *.log
 npm-debug.log*
+
+# Local dev persistence (Railway uses the /data volume)
+.data/

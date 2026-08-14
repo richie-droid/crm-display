@@ -6,6 +6,13 @@ const { getIndividualPerformanceData } = require("./data/individualPerformance")
 const { renderIndividualPerformancePage } = require("./pages/individualPerformance");
 const { buildClosedTransactionsDashboard } = require("./data/closedTransactions");
 const { renderClosedTransactionsPage } = require("./pages/closedTransactions");
+const { buildEscrowSnapshotDashboard } = require("./data/escrowSnapshot");
+const { renderEscrowSnapshotPage } = require("./pages/escrowSnapshot");
+const { renderEscrowSnapshotAdminPage } = require("./pages/escrowSnapshotAdmin");
+const {
+  getEscrowSnapshotsData,
+  saveEscrowSnapshots,
+} = require("./storage/escrowSnapshots");
 const { buildListingsDashboard } = require("./data/listings");
 const { renderListingsPage } = require("./pages/listings");
 const {
@@ -119,6 +126,38 @@ app.get("/api/summary", async (req, res) => {
       ok: false,
       message: error.message,
     });
+  }
+});
+
+app.get("/api/escrow-snapshot", async (req, res) => {
+  try {
+    const data = await buildEscrowSnapshotDashboard();
+    res.json({
+      ok: true,
+      generatedAt: data.generatedAt.toISOString(),
+      current: data.current,
+      prior: data.prior,
+      comparison: data.comparison,
+      hasSnapshots: data.hasSnapshots,
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+app.get("/api/escrow-snapshot/snapshots", (req, res) => {
+  try {
+    res.json({ ok: true, ...getEscrowSnapshotsData() });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+app.post("/api/escrow-snapshot/snapshots", (req, res) => {
+  try {
+    res.json({ ok: true, ...saveEscrowSnapshots(req.body?.entries || []) });
+  } catch (error) {
+    res.status(400).json({ ok: false, message: error.message });
   }
 });
 
@@ -328,6 +367,40 @@ app.get("/closed-production", async (req, res) => {
       .status(500)
       .send(
         `<h1>Closed Transactions Dashboard Error</h1><pre>${error.message}</pre>`
+      );
+  }
+});
+
+app.get("/escrow-snapshot", async (req, res) => {
+  try {
+    res.send(
+      renderEscrowSnapshotPage(
+        await buildEscrowSnapshotDashboard()
+      )
+    );
+  } catch (error) {
+    res
+      .status(500)
+      .send(
+        `<h1>Deals In Escrow Dashboard Error</h1><pre>${error.message}</pre>`
+      );
+  }
+});
+
+app.get("/escrow-snapshot/admin", async (req, res) => {
+  try {
+    const dashboard = await buildEscrowSnapshotDashboard();
+    res.send(
+      renderEscrowSnapshotAdminPage({
+        snapshotsData: getEscrowSnapshotsData(),
+        current: dashboard.current,
+      })
+    );
+  } catch (error) {
+    res
+      .status(500)
+      .send(
+        `<h1>Escrow Snapshot Admin Error</h1><pre>${error.message}</pre>`
       );
   }
 });
