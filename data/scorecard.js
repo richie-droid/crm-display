@@ -1,4 +1,4 @@
-const { getSalesforceToken, querySalesforce } = require("../salesforce/client");
+const { getSalesforceToken, querySalesforce, querySalesforceAll } = require("../salesforce/client");
 const { loadEscrowSnapshots } = require("../storage/escrowSnapshots");
 
 // The scorecard's "Weekly" tab shows the current week plus the previous 4,
@@ -94,6 +94,20 @@ function flowByWeek(records, dateField, weeks) {
   });
 }
 
+// Unique offers whose status changed to Accepted during [W, W+6].
+function acceptedLoisByWeek(historyRows, weeks) {
+  return weeks.map((week) => {
+    const end = addIsoDays(week, 6);
+    const offers = new Set();
+    for (const row of historyRows) {
+      if (String(getField(row, "NewValue")) !== "Accepted") continue;
+      const d = String(getField(row, "CreatedDate") || "").slice(0, 10);
+      if (d >= week && d <= end) offers.add(getField(row, "ParentId"));
+    }
+    return offers.size;
+  });
+}
+
 function escrowByWeek(weeks) {
   const byDate = new Map(loadEscrowSnapshots().map((s) => [s.weekEnding, s]));
   return weeks.map((week) => {
@@ -113,17 +127,30 @@ async function buildScorecard({ anchorDate } = {}) {
   const token = await getSalesforceToken();
   const { instance_url: instanceUrl, access_token: accessToken } = token;
 
-  const [closedRecords, newContractRecords] = await Promise.all([
+  const [closedRecords, newContractRecords, droppedRecords, offerHistory] = await Promise.all([
     // Closed: whole YTD (for cumulative) through the current week's end (for flow).
     // GCI uses the contract-commission field (matches the sheet; actual runs ~2% low).
     fetchByDateRange(instanceUrl, accessToken, "actual_close_date__c", `${year}-01-01`, spanEnd, "Trinity_Contract_Commission_Dollars_form__c"),
     // New contracts: just the 5-week span, by effective date.
     fetchByDateRange(instanceUrl, accessToken, "Contract_Effective_Date__c", weeks[0], spanEnd),
+    // Terminations: contracts dropped in the span.
+    fetchByDateRange(instanceUrl, accessToken, "Date_Dropped__c", weeks[0], spanEnd),
+    // Accepted LOIs: offer-status history over the span.
+    querySalesforceAll(
+      instanceUrl,
+      accessToken,
+      `SELECT ParentId, NewValue, CreatedDate FROM TTL_Core__Offer__History
+       WHERE Field = 'TTL_Core__Offer_Status__c'
+         AND CreatedDate >= ${weeks[0]}T00:00:00Z
+         AND CreatedDate <= ${spanEnd}T23:59:59Z`
+    ),
   ]);
 
   const closedCum = cumulativeByWeek(closedRecords, "actual_close_date__c", "Trinity_Contract_Commission_Dollars_form__c", weeks);
   const closings = flowByWeek(closedRecords, "actual_close_date__c", weeks);
   const newContracts = flowByWeek(newContractRecords, "Contract_Effective_Date__c", weeks);
+  const terminations = flowByWeek(droppedRecords, "Date_Dropped__c", weeks);
+  const acceptedLois = acceptedLoisByWeek(offerHistory.records || [], weeks);
   const escrow = escrowByWeek(weeks);
 
   const currentTotalContracts = weeks.map((_, i) =>
@@ -142,9 +169,11 @@ async function buildScorecard({ anchorDate } = {}) {
     { section: "Company Trends", label: "Closed Contracts", format: "int", values: closedCum.map((c) => c.count) },
     { section: "Company Trends", label: "Escrow Contracts", format: "int", values: escrow.map((e) => e.deals) },
 
-    // Weekly Activity Levels
+    // Weekly Activity Levels (sheet order)
+    { section: "Weekly Activity Levels", label: "Accepted LOIs", format: "int", values: acceptedLois },
     { section: "Weekly Activity Levels", label: "New Contracts", format: "int", values: newContracts },
     { section: "Weekly Activity Levels", label: "Closings", format: "int", values: closings },
+    { section: "Weekly Activity Levels", label: "Terminations", format: "int", values: terminations },
   ];
 
   return {
