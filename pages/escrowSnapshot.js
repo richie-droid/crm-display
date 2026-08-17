@@ -224,6 +224,9 @@ function renderEscrowSnapshotPage(dashboard) {
                   backgroundColor: "rgba(78, 146, 199, 0.55)",
                   borderColor: "rgba(78, 146, 199, 0.9)",
                   borderWidth: 1,
+                  barPercentage: 0.4,
+                  categoryPercentage: 0.9,
+                  maxBarThickness: 12,
                   order: 2,
                 },
                 {
