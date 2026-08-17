@@ -17,7 +17,7 @@ function renderChangeCell(delta, extraClass = "") {
   const arrow = !isValid ? "—" : isUp ? "▲" : "▼";
   const cls = !isValid ? "flat" : isUp ? "up" : "down";
   const text = !isValid ? "" : `${Math.abs(delta).toFixed(1)}%`;
-  return `<div class="cell change ${cls} ${extraClass}">${arrow} ${text}</div>`;
+  return `<td class="change ${cls} ${extraClass}">${arrow} ${text}</td>`;
 }
 
 function safeJson(value) {
@@ -93,48 +93,50 @@ function renderEscrowSnapshotPage(dashboard) {
             font-size: 3.1vh; font-weight: 900; color: var(--spring); white-space: nowrap;
           }
 
-          /* Card */
+          /* Card (table for clean full-width rules) */
           .card {
             border: 0.18vh solid rgba(78, 146, 199, 0.85);
             border-radius: 1.8vh;
             background: rgba(2, 7, 10, 0.67);
             box-shadow: 0 0 4.2vh rgba(78, 146, 199, 0.18);
-            padding: 1.6vh 2vw 1.8vh;
+            padding: 1.4vh 2vw 1.6vh;
           }
-          .card-grid {
-            display: grid;
-            grid-template-columns: 1.1fr 1fr 1fr 1fr;
-            align-items: center;
+          .card table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          .card col.label-col { width: 26%; }
+          .card th, .card td { padding: 0; }
+          .card thead th {
+            vertical-align: bottom;
+            padding-bottom: 1.3vh;
+            border-bottom: 0.18vh solid rgba(244, 241, 236, 0.30);
           }
-          .col-head, .corner {
-            padding: 0.6vh 0 1.2vh;
-            border-bottom: 0.18vh solid rgba(244, 241, 236, 0.28);
-          }
-          .col-head {
+          .card th.col-head {
             text-align: center; text-transform: uppercase; font-weight: 900;
             font-size: 2.2vh; letter-spacing: 0.12vw; color: var(--spring);
           }
-          .col-head .sub {
+          .card th.col-head .sub {
             display: block; font-size: 1.3vh; letter-spacing: 0.06vw;
             color: rgba(254, 250, 246, 0.55); font-weight: 700; margin-top: 0.3vh;
           }
-          .row-head {
-            text-transform: uppercase; font-weight: 900; font-size: 2.4vh;
-            letter-spacing: 0.08vw; color: var(--blue); padding: 2vh 0;
+          .card tbody th.row-head {
+            text-align: left; text-transform: uppercase; font-weight: 900;
+            font-size: 3.6vh; letter-spacing: 0.08vw; color: var(--blue);
+            padding: 1.9vh 0;
           }
-          .cell {
-            text-align: center; padding: 2vh 0;
-            font-weight: 900; white-space: nowrap;
+          .card tbody tr:first-child th, .card tbody tr:first-child td {
+            border-bottom: 0.14vh solid rgba(244, 241, 236, 0.16);
           }
-          .cell.val {
-            font-size: 6.6vh; line-height: 0.95; color: var(--offwhite);
-            letter-spacing: -0.1vw; text-shadow: 0 0.4vh 1.4vh rgba(0,0,0,0.55);
+          .card td.val {
+            text-align: center; vertical-align: middle;
+            font-size: 6.6vh; line-height: 0.95; font-weight: 900; color: var(--offwhite);
+            letter-spacing: -0.1vw; white-space: nowrap; text-shadow: 0 0.4vh 1.4vh rgba(0,0,0,0.55);
           }
-          .cell.change { font-size: 4.4vh; }
-          .cell.change.up { color: var(--spring); }
-          .cell.change.down { color: var(--red); }
-          .cell.change.flat { color: rgba(254, 250, 246, 0.5); }
-          .card-grid .r2 { border-top: 0.14vh solid rgba(244, 241, 236, 0.14); }
+          .card td.change {
+            text-align: center; vertical-align: middle;
+            font-size: 4.4vh; font-weight: 900; white-space: nowrap;
+          }
+          .card td.change.up { color: var(--spring); }
+          .card td.change.down { color: var(--red); }
+          .card td.change.flat { color: rgba(254, 250, 246, 0.5); }
 
           /* Chart */
           .chart-card {
@@ -165,22 +167,34 @@ function renderEscrowSnapshotPage(dashboard) {
           </section>
 
           <section class="card">
-            <div class="card-grid">
-              <div class="corner"></div>
-              <div class="col-head">Current</div>
-              <div class="col-head">Prior Period<span class="sub">${priorSub}</span></div>
-              <div class="col-head">YoY Change</div>
-
-              <div class="row-head">Deals in Escrow</div>
-              <div class="cell val">${curDeals}</div>
-              <div class="cell val">${priorDeals}</div>
-              ${renderChangeCell(comparison.dealsPct)}
-
-              <div class="row-head r2">GCI</div>
-              <div class="cell val r2">${curGci}</div>
-              <div class="cell val r2">${priorGci}</div>
-              ${renderChangeCell(comparison.gciPct, "r2")}
-            </div>
+            <table>
+              <colgroup>
+                <col class="label-col" />
+                <col /><col /><col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th class="col-head">Current</th>
+                  <th class="col-head">Prior Period<span class="sub">${priorSub}</span></th>
+                  <th class="col-head">YoY Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th class="row-head">Deals in Escrow</th>
+                  <td class="val">${curDeals}</td>
+                  <td class="val">${priorDeals}</td>
+                  ${renderChangeCell(comparison.dealsPct)}
+                </tr>
+                <tr>
+                  <th class="row-head">GCI</th>
+                  <td class="val">${curGci}</td>
+                  <td class="val">${priorGci}</td>
+                  ${renderChangeCell(comparison.gciPct)}
+                </tr>
+              </tbody>
+            </table>
           </section>
 
           <section class="chart-card">
