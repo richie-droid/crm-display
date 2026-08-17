@@ -2,49 +2,40 @@ function formatCompactCurrency(value, decimals = 1) {
   if (value >= 1000000) {
     return `$${(value / 1000000).toFixed(decimals)}M`;
   }
-
   if (value >= 1000) {
     return `$${(value / 1000).toFixed(decimals)}K`;
   }
-
   return `$${Number(value).toLocaleString("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   })}`;
 }
 
-function renderTvMetric(label, value, type) {
-  return `
-    <div class="metric ${type}">
-      <div class="value">${value}</div>
-      <div class="label">${label}</div>
-    </div>
-  `;
-}
-
-function renderComparison(label, delta) {
+function renderChangeCell(delta, extraClass = "") {
   const isValid = typeof delta === "number";
   const isUp = isValid ? delta >= 0 : true;
   const arrow = !isValid ? "—" : isUp ? "▲" : "▼";
-  const className = isUp ? "up" : "down";
-  const displayValue = !isValid ? "" : `${Math.abs(delta).toFixed(1)}%`;
+  const cls = !isValid ? "flat" : isUp ? "up" : "down";
+  const text = !isValid ? "" : `${Math.abs(delta).toFixed(1)}%`;
+  return `<div class="cell change ${cls} ${extraClass}">${arrow} ${text}</div>`;
+}
 
-  return `
-    <div class="comparison-card ${className}">
-      <div class="comparison-value ${className}">
-        ${arrow} ${displayValue}
-      </div>
-      <div class="comparison-label">${label}</div>
-    </div>
-  `;
+function safeJson(value) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 function renderEscrowSnapshotPage(dashboard) {
-  const { current, prior, comparison, hasSnapshots } = dashboard;
+  const { current, prior, comparison, trend = [] } = dashboard;
 
-  const priorLabel = prior ? "This Time Last Year" : "No Snapshot Yet";
+  const curDeals = current.deals.toLocaleString("en-US");
+  const curGci = formatCompactCurrency(current.gci, 1);
   const priorDeals = prior ? prior.deals.toLocaleString("en-US") : "—";
-  const priorGci = prior ? formatCompactCurrency(prior.gci, 2) : "—";
+  const priorGci = prior ? formatCompactCurrency(prior.gci, 1) : "—";
+
+  const priorSub = prior
+    ? new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
+        .format(new Date(`${prior.weekEnding}T00:00:00.000Z`))
+    : "no data";
 
   return `
     <!DOCTYPE html>
@@ -53,6 +44,7 @@ function renderEscrowSnapshotPage(dashboard) {
         <title>Trinity Deals In Escrow</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta http-equiv="refresh" content="900" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
         <style>
           :root {
             --navy: #15445B;
@@ -63,248 +55,104 @@ function renderEscrowSnapshotPage(dashboard) {
             --black: #02070A;
             --red: #ff624f;
           }
-
-          * {
-            box-sizing: border-box;
-          }
-
-          html,
-          body {
-            margin: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #02070A;
-            color: var(--offwhite);
+          * { box-sizing: border-box; }
+          html, body {
+            margin: 0; width: 100%; height: 100%; overflow: hidden;
+            background: #02070A; color: var(--offwhite);
             font-family: Arial, Helvetica, sans-serif;
           }
-
           body {
             background:
               radial-gradient(circle at 85% 10%, rgba(78, 146, 199, 0.22), transparent 30%),
               radial-gradient(circle at 12% 92%, rgba(191, 219, 187, 0.12), transparent 28%),
               linear-gradient(135deg, #02070A 0%, #061924 48%, #02070A 100%);
           }
-
           .screen {
-            width: 100vw;
-            height: 100vh;
-            padding: 3.2vh 3vw 3vh;
+            width: 100vw; height: 100vh;
+            padding: 3vh 3vw 2.6vh;
             display: grid;
-            grid-template-rows: 12.5vh 1fr 20vh;
-            gap: 2.7vh;
+            grid-template-rows: 11vh auto 1fr;
+            gap: 2.4vh;
           }
 
           .header {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            align-items: center;
+            display: grid; grid-template-columns: 1fr auto; align-items: center;
             border-bottom: 0.22vh solid rgba(244, 241, 236, 0.34);
-            padding-bottom: 2.1vh;
+            padding-bottom: 1.8vh;
           }
-
-          .brand {
-            display: flex;
-            align-items: center;
-            gap: 1.35vw;
-          }
-
+          .brand { display: flex; align-items: center; gap: 1.35vw; }
           .logo-mark {
-            width: 7.3vh;
-            height: 7.3vh;
-            border: 0.36vh solid var(--blue);
-            border-radius: 999px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--blue);
-            font-size: 4.9vh;
-            font-weight: 900;
+            width: 6.6vh; height: 6.6vh; border: 0.34vh solid var(--blue);
+            border-radius: 999px; display: flex; align-items: center; justify-content: center;
+            color: var(--blue); font-size: 4.4vh; font-weight: 900;
           }
-
-          .brand-divider {
-            width: 0.18vw;
-            height: 8.8vh;
-            background: linear-gradient(to bottom, var(--blue), var(--spring));
-          }
-
-          .brand-name {
-            font-size: 5.7vh;
-            letter-spacing: 1.35vw;
-            font-weight: 500;
-            color: var(--bone);
-            white-space: nowrap;
-          }
-
+          .brand-divider { width: 0.18vw; height: 8vh; background: linear-gradient(to bottom, var(--blue), var(--spring)); }
+          .brand-name { font-size: 5.2vh; letter-spacing: 1.3vw; font-weight: 500; color: var(--bone); white-space: nowrap; }
           .page-title {
-            text-align: right;
-            text-transform: uppercase;
-            letter-spacing: 0.55vw;
-            font-size: 3.4vh;
-            font-weight: 900;
-            color: var(--spring);
-            white-space: nowrap;
+            text-align: right; text-transform: uppercase; letter-spacing: 0.5vw;
+            font-size: 3.1vh; font-weight: 900; color: var(--spring); white-space: nowrap;
           }
 
-          .main {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 3vw;
-            min-height: 0;
-          }
-
-          .column {
+          /* Card */
+          .card {
             border: 0.18vh solid rgba(78, 146, 199, 0.85);
             border-radius: 1.8vh;
             background: rgba(2, 7, 10, 0.67);
-            overflow: hidden;
-            display: grid;
-            grid-template-rows: 10.3vh 1fr;
             box-shadow: 0 0 4.2vh rgba(78, 146, 199, 0.18);
+            padding: 1.6vh 2vw 1.8vh;
           }
-
-          .column-header {
-            background: linear-gradient(90deg, rgba(21, 68, 91, 0.95), rgba(78, 146, 199, 0.76));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-          }
-
-          .column.prior .column-header {
-            background: linear-gradient(90deg, rgba(21, 68, 91, 0.72), rgba(78, 146, 199, 0.45));
-          }
-
-          .period {
-            font-size: 5.2vh;
-            letter-spacing: 0.45vw;
-            font-weight: 900;
-            color: var(--offwhite);
-            text-transform: uppercase;
-          }
-
-          .column.prior .period {
-            font-size: 4.4vh;
-          }
-
-          .metrics {
+          .card-grid {
             display: grid;
-            grid-template-rows: repeat(3, 1fr);
-            padding: 2vh 2.3vw 2.2vh;
-          }
-
-          .metric {
-            display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: 1.1fr 1fr 1fr 1fr;
             align-items: center;
-            border-bottom: 0.18vh solid rgba(244, 241, 236, 0.31);
+          }
+          .col-head, .corner {
+            padding: 0.6vh 0 1.2vh;
+            border-bottom: 0.18vh solid rgba(244, 241, 236, 0.28);
+          }
+          .col-head {
+            text-align: center; text-transform: uppercase; font-weight: 900;
+            font-size: 2.2vh; letter-spacing: 0.12vw; color: var(--spring);
+          }
+          .col-head .sub {
+            display: block; font-size: 1.3vh; letter-spacing: 0.06vw;
+            color: rgba(254, 250, 246, 0.55); font-weight: 700; margin-top: 0.3vh;
+          }
+          .row-head {
+            text-transform: uppercase; font-weight: 900; font-size: 2.4vh;
+            letter-spacing: 0.08vw; color: var(--blue); padding: 2vh 0;
+          }
+          .cell {
+            text-align: center; padding: 2vh 0;
+            font-weight: 900; white-space: nowrap;
+          }
+          .cell.val {
+            font-size: 6.6vh; line-height: 0.95; color: var(--offwhite);
+            letter-spacing: -0.1vw; text-shadow: 0 0.4vh 1.4vh rgba(0,0,0,0.55);
+          }
+          .cell.change { font-size: 4.4vh; }
+          .cell.change.up { color: var(--spring); }
+          .cell.change.down { color: var(--red); }
+          .cell.change.flat { color: rgba(254, 250, 246, 0.5); }
+          .card-grid .r2 { border-top: 0.14vh solid rgba(244, 241, 236, 0.14); }
+
+          /* Chart */
+          .chart-card {
             min-height: 0;
-            column-gap: 1.8vw;
+            border: 0.18vh solid rgba(78, 146, 199, 0.85);
+            border-radius: 1.8vh;
+            background: rgba(2, 7, 10, 0.67);
+            box-shadow: 0 0 4.2vh rgba(78, 146, 199, 0.18);
+            padding: 1.4vh 1.6vw 1.6vh;
+            display: flex; flex-direction: column; gap: 0.8vh;
           }
-
-          .metric:last-child {
-            border-bottom: none;
+          .chart-title {
+            font-size: 1.9vh; font-weight: 900; text-transform: uppercase;
+            letter-spacing: 0.1vw; color: var(--spring);
           }
-
-          .value {
-            font-size: 10.1vh;
-            line-height: 0.9;
-            font-weight: 900;
-            color: var(--offwhite);
-            letter-spacing: -0.18vw;
-            white-space: nowrap;
-            text-shadow: 0 0.4vh 1.4vh rgba(0, 0, 0, 0.55);
-            justify-self: center;
-          }
-
-          .value.muted {
-            color: rgba(244, 241, 236, 0.35);
-          }
-
-          .label {
-            font-size: 3.1vh;
-            letter-spacing: 0.16vw;
-            font-weight: 900;
-            text-transform: uppercase;
-            color: var(--spring);
-            white-space: nowrap;
-            justify-self: start;
-          }
-
-          .metric.volume .label {
-            color: var(--blue);
-          }
-
-          .comparison {
-            border: 0.18vh solid rgba(244, 241, 236, 0.36);
-            border-radius: 1.6vh;
-            background: rgba(2, 7, 10, 0.54);
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            overflow: hidden;
-          }
-
-          .comparison-card {
-            position: relative;
-            display: grid;
-            grid-template-rows: 1fr auto;
-            align-items: center;
-            justify-items: center;
-            border-right: 0.18vh solid rgba(244, 241, 236, 0.28);
-            padding: 2.5vh 1vw 2.3vh;
-          }
-
-          .comparison-card:last-child {
-            border-right: none;
-          }
-
-          .comparison-card.up::after {
-            content: "";
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: 0.35vh;
-            background: linear-gradient(90deg, transparent, rgba(191, 219, 187, 0.95), transparent);
-          }
-
-          .comparison-card.down::after {
-            content: "";
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: 0.35vh;
-            background: linear-gradient(90deg, transparent, rgba(255, 98, 79, 0.95), transparent);
-          }
-
-          .comparison-value {
-            font-size: 6.7vh;
-            line-height: 1;
-            font-weight: 900;
-            white-space: nowrap;
-          }
-
-          .comparison-value.up {
-            color: var(--spring);
-          }
-
-          .comparison-value.down {
-            color: var(--red);
-          }
-
-          .comparison-label {
-            margin-top: 1vh;
-            font-size: 2.4vh;
-            letter-spacing: 0.25vw;
-            color: var(--offwhite);
-            text-transform: uppercase;
-            font-weight: 900;
-            white-space: nowrap;
-          }
+          .chart-wrap { position: relative; flex: 1; min-height: 0; }
         </style>
       </head>
-
       <body>
         <main class="screen">
           <section class="header">
@@ -313,44 +161,119 @@ function renderEscrowSnapshotPage(dashboard) {
               <div class="brand-divider"></div>
               <div class="brand-name">TRINITY</div>
             </div>
-
             <div class="page-title">Deals In Escrow</div>
           </section>
 
-          <section class="main">
-            <section class="column current">
-              <div class="column-header">
-                <div class="period">${current.label}</div>
-              </div>
+          <section class="card">
+            <div class="card-grid">
+              <div class="corner"></div>
+              <div class="col-head">Current</div>
+              <div class="col-head">Prior Period<span class="sub">${priorSub}</span></div>
+              <div class="col-head">YoY Change</div>
 
-              <div class="metrics">
-                ${renderTvMetric("Deals", current.deals.toLocaleString("en-US"), "deals")}
-                ${renderTvMetric("Volume", formatCompactCurrency(current.volume, 1), "volume")}
-                ${renderTvMetric("GCI", formatCompactCurrency(current.gci, 2), "gci")}
-              </div>
-            </section>
+              <div class="row-head">Deals in Escrow</div>
+              <div class="cell val">${curDeals}</div>
+              <div class="cell val">${priorDeals}</div>
+              ${renderChangeCell(comparison.dealsPct)}
 
-            <section class="column prior">
-              <div class="column-header">
-                <div class="period">${priorLabel}</div>
-              </div>
-
-              <div class="metrics">
-                ${renderTvMetric("Deals", priorDeals, "deals")}
-                <div class="metric volume">
-                  <div class="value muted">—</div>
-                  <div class="label">Volume</div>
-                </div>
-                ${renderTvMetric("GCI", priorGci, "gci")}
-              </div>
-            </section>
+              <div class="row-head r2">GCI</div>
+              <div class="cell val r2">${curGci}</div>
+              <div class="cell val r2">${priorGci}</div>
+              ${renderChangeCell(comparison.gciPct, "r2")}
+            </div>
           </section>
 
-          <section class="comparison">
-            ${renderComparison("# of Deals vs Prior", comparison.dealsPct)}
-            ${renderComparison("GCI vs Prior", comparison.gciPct)}
+          <section class="chart-card">
+            <div class="chart-title">52-Week Trend &mdash; GCI (line) &amp; Deals in Escrow (bars)</div>
+            <div class="chart-wrap"><canvas id="escrowTrend"></canvas></div>
           </section>
         </main>
+
+        <script>
+          const trend = ${safeJson(trend)};
+          const labels = trend.map((p) => {
+            const d = new Date(p.weekEnding + "T00:00:00Z");
+            return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+          });
+          const gci = trend.map((p) => p.gci);
+          const deals = trend.map((p) => p.deals);
+
+          new Chart(document.getElementById("escrowTrend"), {
+            data: {
+              labels,
+              datasets: [
+                {
+                  type: "bar",
+                  label: "Deals in Escrow",
+                  data: deals,
+                  yAxisID: "yCount",
+                  backgroundColor: "rgba(78, 146, 199, 0.55)",
+                  borderColor: "rgba(78, 146, 199, 0.9)",
+                  borderWidth: 1,
+                  order: 2,
+                },
+                {
+                  type: "line",
+                  label: "Escrow GCI",
+                  data: gci,
+                  yAxisID: "yGci",
+                  borderColor: "#BFDBBB",
+                  backgroundColor: "rgba(191, 219, 187, 0.10)",
+                  pointBackgroundColor: "#BFDBBB",
+                  fill: true,
+                  tension: 0.28,
+                  borderWidth: 3.5,
+                  pointRadius: 0,
+                  pointHoverRadius: 5,
+                  order: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              interaction: { mode: "index", intersect: false },
+              plugins: {
+                legend: {
+                  display: true,
+                  labels: { color: "rgba(254, 250, 246, 0.85)", font: { size: 15, weight: "bold" }, boxWidth: 18, padding: 16 },
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      if (ctx.dataset.yAxisID === "yGci") {
+                        return "GCI: $" + Math.round(ctx.raw).toLocaleString("en-US");
+                      }
+                      return "Deals: " + ctx.raw;
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  grid: { display: false },
+                  ticks: { color: "rgba(254, 250, 246, 0.6)", font: { size: 13 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 13 },
+                },
+                yGci: {
+                  position: "left",
+                  beginAtZero: true,
+                  grid: { color: "rgba(254, 250, 246, 0.08)" },
+                  ticks: {
+                    color: "#BFDBBB", font: { size: 13 },
+                    callback: function (v) { return "$" + (v / 1000000).toFixed(1) + "M"; },
+                  },
+                },
+                yCount: {
+                  position: "right",
+                  beginAtZero: true,
+                  grid: { display: false },
+                  ticks: { color: "#4E92C7", font: { size: 13 } },
+                },
+              },
+            },
+          });
+        </script>
       </body>
     </html>
   `;

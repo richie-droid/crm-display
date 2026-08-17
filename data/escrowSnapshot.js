@@ -135,6 +135,17 @@ async function buildEscrowSnapshotDashboard() {
   const snapshots = loadEscrowSnapshots();
   const match = findYearAgoSnapshot(snapshots, todayIso);
 
+  // Weekly trend, trailing 12 months (~52 points), oldest -> newest.
+  const trailingStart = (() => {
+    const d = new Date(`${todayIso}T00:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() - 364);
+    return d.toISOString().slice(0, 10);
+  })();
+  const trend = snapshots
+    .filter((s) => s.weekEnding >= trailingStart && s.weekEnding <= todayIso)
+    .sort((a, b) => a.weekEnding.localeCompare(b.weekEnding))
+    .map((s) => ({ weekEnding: s.weekEnding, deals: s.deals, gci: s.gci }));
+
   let prior = null;
   let comparison = { dealsPct: null, gciPct: null };
 
@@ -160,6 +171,7 @@ async function buildEscrowSnapshotDashboard() {
     current,
     prior,
     comparison,
+    trend,
     hasSnapshots: snapshots.length > 0,
   };
 }

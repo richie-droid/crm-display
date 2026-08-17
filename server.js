@@ -140,6 +140,7 @@ app.get("/api/escrow-snapshot", async (req, res) => {
       current: data.current,
       prior: data.prior,
       comparison: data.comparison,
+      trend: data.trend,
       hasSnapshots: data.hasSnapshots,
     });
   } catch (error) {
