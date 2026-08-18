@@ -112,6 +112,39 @@ function findYearAgoSnapshot(snapshots, todayIso) {
   return { snapshot: best, targetIso, distanceDays: bestDistance };
 }
 
+// Takes the first 12 weekly snapshots on/after June 1 of each year and aligns
+// them by week index (Week 1..12), so the two years overlay on a shared axis.
+function buildWeekComparison(snapshots, priorYear, currentYear, weeks = 12) {
+  const firstTwelveFromJune = (year) =>
+    snapshots
+      .filter((s) => s.weekEnding >= `${year}-06-01` && s.weekEnding <= `${year}-12-31`)
+      .sort((a, b) => a.weekEnding.localeCompare(b.weekEnding))
+      .slice(0, weeks);
+
+  const prior = firstTwelveFromJune(priorYear);
+  const current = firstTwelveFromJune(currentYear);
+
+  const result = {
+    priorYear,
+    currentYear,
+    labels: [],
+    priorGci: [],
+    currentGci: [],
+    priorDeals: [],
+    currentDeals: [],
+  };
+
+  for (let i = 0; i < weeks; i += 1) {
+    result.labels.push(`Week ${i + 1}`);
+    result.priorGci.push(prior[i] ? prior[i].gci : null);
+    result.currentGci.push(current[i] ? current[i].gci : null);
+    result.priorDeals.push(prior[i] ? prior[i].deals : null);
+    result.currentDeals.push(current[i] ? current[i].deals : null);
+  }
+
+  return result;
+}
+
 async function buildEscrowSnapshotDashboard() {
   const tokenData = await getSalesforceToken();
 
@@ -146,6 +179,11 @@ async function buildEscrowSnapshotDashboard() {
     .sort((a, b) => a.weekEnding.localeCompare(b.weekEnding))
     .map((s) => ({ weekEnding: s.weekEnding, deals: s.deals, gci: s.gci }));
 
+  // 12-week June-start comparison, current year vs prior year, aligned by week index.
+  const currentYear = Number(todayIso.slice(0, 4));
+  const priorYear = currentYear - 1;
+  const weekComparison = buildWeekComparison(snapshots, priorYear, currentYear);
+
   let prior = null;
   let comparison = { dealsPct: null, gciPct: null };
 
@@ -172,6 +210,7 @@ async function buildEscrowSnapshotDashboard() {
     prior,
     comparison,
     trend,
+    weekComparison,
     hasSnapshots: snapshots.length > 0,
   };
 }

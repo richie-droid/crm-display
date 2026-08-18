@@ -25,7 +25,7 @@ function safeJson(value) {
 }
 
 function renderEscrowSnapshotPage(dashboard) {
-  const { current, prior, comparison, trend = [] } = dashboard;
+  const { current, prior, comparison, trend = [], weekComparison = null } = dashboard;
 
   const curDeals = current.deals.toLocaleString("en-US");
   const curGci = formatCompactCurrency(current.gci, 1);
@@ -138,8 +138,15 @@ function renderEscrowSnapshotPage(dashboard) {
           .card td.change.down { color: var(--red); }
           .card td.change.flat { color: rgba(254, 250, 246, 0.5); }
 
-          /* Chart */
+          /* Charts */
+          .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.4vw;
+            min-height: 0;
+          }
           .chart-card {
+            min-width: 0;
             min-height: 0;
             border: 0.18vh solid rgba(78, 146, 199, 0.85);
             border-radius: 1.8vh;
@@ -197,9 +204,15 @@ function renderEscrowSnapshotPage(dashboard) {
             </table>
           </section>
 
-          <section class="chart-card">
-            <div class="chart-title">52-Week Trend &mdash; GCI (line) &amp; Deals in Escrow (bars)</div>
-            <div class="chart-wrap"><canvas id="escrowTrend"></canvas></div>
+          <section class="charts-row">
+            <div class="chart-card">
+              <div class="chart-title">52-Week Trend &mdash; GCI (line) &amp; Deals in Escrow (bars)</div>
+              <div class="chart-wrap"><canvas id="escrowTrend"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">12 Week Comparison YoY</div>
+              <div class="chart-wrap"><canvas id="escrowYoY"></canvas></div>
+            </div>
           </section>
         </main>
 
@@ -290,6 +303,114 @@ function renderEscrowSnapshotPage(dashboard) {
               },
             },
           });
+
+          // Chart 2: 12-week June-start comparison, current year vs prior year.
+          const yoy = ${safeJson(weekComparison)};
+          if (yoy) {
+            new Chart(document.getElementById("escrowYoY"), {
+              data: {
+                labels: yoy.labels,
+                datasets: [
+                  {
+                    type: "bar",
+                    label: yoy.priorYear + " Deals",
+                    data: yoy.priorDeals,
+                    yAxisID: "yCount",
+                    backgroundColor: "rgba(150, 160, 170, 0.5)",
+                    borderColor: "rgba(150, 160, 170, 0.8)",
+                    borderWidth: 1,
+                    barPercentage: 1.0,
+                    categoryPercentage: 0.7,
+                    order: 3,
+                  },
+                  {
+                    type: "bar",
+                    label: yoy.currentYear + " Deals",
+                    data: yoy.currentDeals,
+                    yAxisID: "yCount",
+                    backgroundColor: "rgba(78, 146, 199, 0.7)",
+                    borderColor: "rgba(78, 146, 199, 0.95)",
+                    borderWidth: 1,
+                    barPercentage: 1.0,
+                    categoryPercentage: 0.7,
+                    order: 3,
+                  },
+                  {
+                    type: "line",
+                    label: yoy.priorYear + " GCI",
+                    data: yoy.priorGci,
+                    yAxisID: "yGci",
+                    borderColor: "#9aa7b2",
+                    backgroundColor: "transparent",
+                    pointBackgroundColor: "#9aa7b2",
+                    tension: 0.28,
+                    borderWidth: 3,
+                    borderDash: [6, 4],
+                    pointRadius: 2,
+                    spanGaps: true,
+                    order: 1,
+                  },
+                  {
+                    type: "line",
+                    label: yoy.currentYear + " GCI",
+                    data: yoy.currentGci,
+                    yAxisID: "yGci",
+                    borderColor: "#BFDBBB",
+                    backgroundColor: "transparent",
+                    pointBackgroundColor: "#BFDBBB",
+                    tension: 0.28,
+                    borderWidth: 3.5,
+                    pointRadius: 2,
+                    spanGaps: true,
+                    order: 1,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                  legend: {
+                    display: true,
+                    labels: { color: "rgba(254, 250, 246, 0.85)", font: { size: 14, weight: "bold" }, boxWidth: 16, padding: 12 },
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function (ctx) {
+                        if (ctx.dataset.yAxisID === "yGci") {
+                          return ctx.dataset.label + ": $" + Math.round(ctx.raw).toLocaleString("en-US");
+                        }
+                        return ctx.dataset.label + ": " + ctx.raw;
+                      },
+                    },
+                  },
+                },
+                scales: {
+                  x: {
+                    grid: { display: false },
+                    ticks: { color: "rgba(254, 250, 246, 0.6)", font: { size: 12 }, maxRotation: 0, autoSkip: false },
+                  },
+                  yGci: {
+                    position: "left",
+                    beginAtZero: true,
+                    grid: { color: "rgba(254, 250, 246, 0.08)" },
+                    ticks: {
+                      color: "#BFDBBB", font: { size: 13 },
+                      callback: function (v) { return "$" + (v / 1000000).toFixed(1) + "M"; },
+                    },
+                  },
+                  yCount: {
+                    position: "right",
+                    beginAtZero: true,
+                    grid: { display: false },
+                    ticks: { color: "#4E92C7", font: { size: 13 } },
+                  },
+                },
+              },
+            });
+          }
         </script>
       </body>
     </html>
