@@ -75,6 +75,12 @@ function percentChange(current, prior) {
   return ((current - prior) / prior) * 100;
 }
 
+function addIsoDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function daysBetween(aIso, bIso) {
   const a = new Date(`${aIso}T00:00:00.000Z`).getTime();
   const b = new Date(`${bIso}T00:00:00.000Z`).getTime();
@@ -124,6 +130,16 @@ function buildWeekComparison(snapshots, priorYear, currentYear, weeks = 12) {
   const prior = firstTwelveFromJune(priorYear);
   const current = firstTwelveFromJune(currentYear);
 
+  // X-axis labels are the current year's week dates. Where a current-year week
+  // hasn't happened yet, extrapolate 7 days from the last known week.
+  const monthDay = (iso) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+      .format(new Date(Date.UTC(y, m - 1, d)));
+  };
+  let lastKnownIso = null;
+  let lastKnownIdx = -1;
+
   const result = {
     priorYear,
     currentYear,
@@ -135,7 +151,15 @@ function buildWeekComparison(snapshots, priorYear, currentYear, weeks = 12) {
   };
 
   for (let i = 0; i < weeks; i += 1) {
-    result.labels.push(`Week ${i + 1}`);
+    let labelIso = null;
+    if (current[i]) {
+      labelIso = current[i].weekEnding;
+      lastKnownIso = labelIso;
+      lastKnownIdx = i;
+    } else if (lastKnownIso) {
+      labelIso = addIsoDays(lastKnownIso, 7 * (i - lastKnownIdx));
+    }
+    result.labels.push(labelIso ? monthDay(labelIso) : `Week ${i + 1}`);
     result.priorGci.push(prior[i] ? prior[i].gci : null);
     result.currentGci.push(current[i] ? current[i].gci : null);
     result.priorDeals.push(prior[i] ? prior[i].deals : null);

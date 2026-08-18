@@ -28,12 +28,12 @@ function renderEscrowSnapshotPage(dashboard) {
   const { current, prior, comparison, trend = [], weekComparison = null } = dashboard;
 
   const curDeals = current.deals.toLocaleString("en-US");
-  const curGci = formatCompactCurrency(current.gci, 1);
+  const curGci = formatCompactCurrency(current.gci, 2);
   const priorDeals = prior ? prior.deals.toLocaleString("en-US") : "—";
-  const priorGci = prior ? formatCompactCurrency(prior.gci, 1) : "—";
+  const priorGci = prior ? formatCompactCurrency(prior.gci, 2) : "—";
 
   const priorSub = prior
-    ? new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
+    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
         .format(new Date(`${prior.weekEnding}T00:00:00.000Z`))
     : "no data";
 
