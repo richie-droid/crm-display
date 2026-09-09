@@ -329,6 +329,14 @@ function renderHomeStretchPage(data) {
 
     .structure-list li + li { margin-top: 0.3vh; }
 
+    .fine-print {
+      margin-top: 0.8vh;
+      color: var(--muted);
+      font-size: 1.05vh;
+      font-style: italic;
+      line-height: 1.3;
+    }
+
     .scoring-grid {
       display: grid;
       grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -431,6 +439,8 @@ function renderHomeStretchPage(data) {
             Winning Team gets 4 tickets to a Stars game!
           </li>
         </ul>
+
+        <div class="fine-print">Reward for non-local winners will be determined individually.</div>
       </article>
 
       <article class="info-card">
