@@ -66,10 +66,6 @@ function renderHomeStretchPage(data) {
     })
     .join("");
 
-  const statusLine = data.window.started
-    ? `Live &nbsp;·&nbsp; data through ${escapeHtml(dateLabel(data.window.dataThrough))}`
-    : `Starts ${escapeHtml(dateLabel(data.window.start))}`;
-
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -335,13 +331,13 @@ function renderHomeStretchPage(data) {
 
     .scoring-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0.65vw;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0.5vw;
     }
 
     .scoring-item {
       min-width: 0;
-      padding: 1.15vh 0.7vw;
+      padding: 0.85vh 0.4vw;
       border: 0.14vh solid rgba(70, 106, 128, 0.4);
       border-radius: 0.9vh;
       background: rgba(4, 15, 23, 0.48);
@@ -350,20 +346,20 @@ function renderHomeStretchPage(data) {
 
     .scoring-item span {
       display: block;
-      min-height: 2.4vh;
+      min-height: 2.1vh;
       color: var(--muted);
-      font-size: 1.05vh;
+      font-size: 0.95vh;
       font-weight: 800;
-      line-height: 1.15;
-      letter-spacing: 0.04vw;
+      line-height: 1.1;
+      letter-spacing: 0.02vw;
       text-transform: uppercase;
     }
 
     .scoring-item strong {
       display: block;
-      margin-top: 0.75vh;
+      margin-top: 0.5vh;
       color: var(--white);
-      font-size: 2.15vh;
+      font-size: 1.85vh;
       line-height: 1;
     }
 
@@ -385,7 +381,7 @@ function renderHomeStretchPage(data) {
       .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .info-card { grid-column: span 1; }
-      .scoring-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .scoring-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -431,7 +427,8 @@ function renderHomeStretchPage(data) {
           </li>
 
           <li>
-            ${escapeHtml(statusLine)}
+            <strong>Prize:</strong>
+            Winning Team gets 4 tickets to a Stars game!
           </li>
         </ul>
       </article>
