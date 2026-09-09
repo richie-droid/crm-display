@@ -43,6 +43,22 @@ const {
   getPipelineGrowthAdjustmentsData,
   savePipelineGrowthAdjustments,
 } = require("./storage/pipelineGrowthAdjustments");
+const {
+  buildHomeStretch,
+  getCompetitionWeeks: getHomeStretchWeeks,
+  getHomeStretchRoster,
+} = require("./data/homeStretch");
+const { renderHomeStretchPage } = require("./pages/homeStretch");
+const { renderHomeStretchVerificationPage } = require("./pages/homeStretchVerification");
+const { renderHomeStretchAdminPage } = require("./pages/homeStretchAdmin");
+const {
+  getHomeStretchCallsData,
+  saveHomeStretchCalls,
+} = require("./storage/homeStretchCalls");
+const {
+  getHomeStretchAdjustmentsData,
+  saveHomeStretchAdjustments,
+} = require("./storage/homeStretchAdjustments");
 const { saveSnapshot, saveAttempt } = require("./storage/metricStore");
 const { seedMetricHistory } = require("./storage/seedMetricHistory");
 
@@ -244,6 +260,36 @@ app.get("/api/pipeline-growth-challenge/adjustments", (req, res) => {
 
 app.post("/api/pipeline-growth-challenge/adjustments", (req, res) => {
   try { res.json({ ok: true, ...savePipelineGrowthAdjustments(req.body?.entries || []) }); }
+  catch (error) { res.status(400).json({ ok: false, message: error.message }); }
+});
+
+app.get("/api/home-stretch", async (req, res) => {
+  try { res.json({ ok: true, ...(await buildHomeStretch()) }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
+});
+
+app.get("/api/home-stretch/debug", async (req, res) => {
+  try { res.json({ ok: true, ...(await buildHomeStretch({ debug: true })) }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
+});
+
+app.get("/api/home-stretch/calls", (req, res) => {
+  try { res.json({ ok: true, ...getHomeStretchCallsData() }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
+});
+
+app.post("/api/home-stretch/calls", (req, res) => {
+  try { res.json({ ok: true, ...saveHomeStretchCalls(req.body?.entries || []) }); }
+  catch (error) { res.status(400).json({ ok: false, message: error.message }); }
+});
+
+app.get("/api/home-stretch/adjustments", (req, res) => {
+  try { res.json({ ok: true, ...getHomeStretchAdjustmentsData() }); }
+  catch (error) { res.status(500).json({ ok: false, message: error.message }); }
+});
+
+app.post("/api/home-stretch/adjustments", (req, res) => {
+  try { res.json({ ok: true, ...saveHomeStretchAdjustments(req.body?.entries || []) }); }
   catch (error) { res.status(400).json({ ok: false, message: error.message }); }
 });
 
@@ -502,6 +548,27 @@ app.get("/pipeline-growth-challenge/admin", (req, res) => {
       adjustmentsData: getPipelineGrowthAdjustmentsData(),
     }));
   } catch (error) { res.status(500).send(`<h1>Pipeline Growth Admin Error</h1><pre>${error.message}</pre>`); }
+});
+
+app.get("/home-stretch", async (req, res) => {
+  try { res.send(renderHomeStretchPage(await buildHomeStretch())); }
+  catch (error) { res.status(500).send(`<h1>Home Stretch Error</h1><pre>${error.message}</pre>`); }
+});
+
+app.get("/home-stretch/verification", async (req, res) => {
+  try { res.send(renderHomeStretchVerificationPage(await buildHomeStretch())); }
+  catch (error) { res.status(500).send(`<h1>Home Stretch Verification Error</h1><pre>${error.message}</pre>`); }
+});
+
+app.get("/home-stretch/admin", (req, res) => {
+  try {
+    res.send(renderHomeStretchAdminPage({
+      roster: getHomeStretchRoster(),
+      weeks: getHomeStretchWeeks(),
+      callsData: getHomeStretchCallsData(),
+      adjustmentsData: getHomeStretchAdjustmentsData(),
+    }));
+  } catch (error) { res.status(500).send(`<h1>Home Stretch Admin Error</h1><pre>${error.message}</pre>`); }
 });
 
 app.get("/market-statistics", (req, res) => {
