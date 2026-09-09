@@ -256,7 +256,7 @@ function renderHomeStretchAdminPage({ roster, weeks, callsData, adjustmentsData 
       <table>
         <thead>
           <tr>
-            <th class="team-head">Squad</th>
+            <th class="team-head">Team</th>
             <th class="agent-head">Agent</th>
             <th class="adj-head">Net Adj</th>
             <th class="notes-head">Notes</th>
