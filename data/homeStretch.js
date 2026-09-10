@@ -425,14 +425,13 @@ function getHomeStretchRoster() {
   });
 }
 
-function getTopBottomAgents(agentRows) {
+function getTopAgents(agentRows) {
   const sorted = [...agentRows].sort(
     (a, b) => b.totalPoints - a.totalPoints || a.displayName.localeCompare(b.displayName)
   );
 
   return {
-    top3: sorted.slice(0, 3),
-    bottom3: sorted.slice(-3).reverse(),
+    top5: sorted.slice(0, 5),
   };
 }
 
@@ -522,7 +521,7 @@ async function buildHomeStretch({ debug = false } = {}) {
       rule: "Call weeks are only counted once that week's totals have been entered in the admin page.",
     },
     teams,
-    topBottomAgents: getTopBottomAgents(agentRows),
+    topBottomAgents: getTopAgents(agentRows),
   };
 
   if (debug) {

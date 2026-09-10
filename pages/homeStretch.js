@@ -169,9 +169,8 @@ function renderHomeStretchPage(data) {
 
     .rank-strip {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      grid-template-columns: 1fr;
       align-items: stretch;
-      gap: 1.2vw;
       min-height: 0;
     }
 
@@ -187,12 +186,11 @@ function renderHomeStretchPage(data) {
     }
 
     .rank-group.top .rank-group-label { color: var(--good); }
-    .rank-group.bottom .rank-group-label { color: var(--bad); }
 
     .rank-cards {
       flex: 1;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 1vw;
     }
 
@@ -210,17 +208,9 @@ function renderHomeStretchPage(data) {
     }
 
     .rank-group.top .rank-card { border-left: 0.3vw solid var(--good); }
-    .rank-group.bottom .rank-card { border-left: 0.3vw solid var(--bad); }
 
     .rank-card strong { font-size: 1.9vh; line-height: 1.1; }
     .rank-card span { font-size: 2.3vh; font-weight: 900; color: var(--white); }
-
-    .rank-divider {
-      width: 0.16vw;
-      align-self: stretch;
-      margin-top: 2.1vh;
-      background: var(--line);
-    }
 
     .team-grid {
       display: grid;
@@ -407,9 +397,7 @@ function renderHomeStretchPage(data) {
     </section>
 
     <section class="rank-strip">
-      ${rankGroup("Top 3", data.topBottomAgents?.top3 || [], "top")}
-      <div class="rank-divider"></div>
-      ${rankGroup("Bottom 3", data.topBottomAgents?.bottom3 || [], "bottom")}
+      ${rankGroup("Top 5", data.topBottomAgents?.top5 || [], "top")}
     </section>
 
     <section class="team-grid">
