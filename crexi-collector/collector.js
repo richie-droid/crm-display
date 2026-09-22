@@ -4,7 +4,13 @@ const { chromium } = require("playwright");
 
 const SEARCH_URL =
   process.env.CREXI_SAVED_SEARCH_URL ||
-  "https://www.crexi.com/search?searchType=Sales&financials.capRatePercent_min=2&tenancy.tenancyType_value=Single&showMap=false";
+  "https://www.crexi.com/search?tableView=true" +
+    "&tenancy.tenancyType_value=Single" +
+    "&searchAttributes.status_tree_Active=" +
+    "&financials.capRatePercent_min=2" +
+    "&searchType=Sales" +
+    "&sorting=listingAttributes.dateActivated_desc_0" +
+    "&showMap=false";
 
 const INGEST_URL =
   process.env.DASHBOARD_INGEST_URL;
@@ -16,10 +22,76 @@ const DEBUG_URL =
   process.env.CREXI_DEBUG_URL ||
   "http://127.0.0.1:9222";
 
-function isCrexiSearchPage(url) {
+// Query parameters that only affect presentation, never the
+// number of matching listings. Crexi rewrites some of these on
+// its own (tableView flips to false for logged-out sessions, and
+// showMap is appended automatically), so they must be ignored
+// when deciding whether a page shows the configured search.
+const COSMETIC_PARAMS = new Set([
+  "tableView",
+  "showMap",
+  "sorting",
+  "page",
+  "pageSize",
+  "savedSearchId",
+  "mapCenter",
+  "mapZoom",
+]);
+
+function searchFingerprint(url) {
+  let parsed;
+
+  try {
+    parsed = new URL(url);
+  } catch (error) {
+    return null;
+  }
+
+  if (
+    !/(^|\.)crexi\.com$/i.test(parsed.hostname) ||
+    !/^\/(search|properties)\/?$/i.test(parsed.pathname)
+  ) {
+    return null;
+  }
+
+  const entries = [];
+
+  for (const [
+    key,
+    value,
+  ] of parsed.searchParams.entries()) {
+    if (
+      COSMETIC_PARAMS.has(key) ||
+      key.toLowerCase().startsWith("utm_")
+    ) {
+      continue;
+    }
+
+    entries.push(`${key}=${value}`);
+  }
+
+  entries.sort();
+
+  return `${parsed.pathname.replace(
+    /\/$/,
+    ""
+  )}?${entries.join("&")}`;
+}
+
+const EXPECTED_FINGERPRINT =
+  searchFingerprint(SEARCH_URL);
+
+if (!EXPECTED_FINGERPRINT) {
+  throw new Error(
+    `CREXI_SAVED_SEARCH_URL is not a valid Crexi search URL: ` +
+      `${SEARCH_URL}`
+  );
+}
+
+function isConfiguredSearchPage(url) {
   return (
-    url.includes("crexi.com/search") ||
-    url.includes("crexi.com/properties")
+    searchFingerprint(url) ===
+    EXPECTED_FINGERPRINT
   );
 }
 
@@ -71,9 +143,13 @@ async function sendAttempt(
 async function getCrexiPage(context) {
   const pages = context.pages();
 
+  // Only reuse a tab that is already showing the configured
+  // search. Reusing any crexi.com tab is how an unrelated saved
+  // search left open in this browser silently replaced the
+  // tracked metric for six days in September 2026.
   const existingCrexiPage =
     pages.find((page) =>
-      isCrexiSearchPage(
+      isConfiguredSearchPage(
         page.url()
       )
     );
@@ -82,18 +158,15 @@ async function getCrexiPage(context) {
     return existingCrexiPage;
   }
 
-  const page =
-    await context.newPage();
+  const reusableBlankPage =
+    pages.find((page) =>
+      page.url() === "about:blank"
+    );
 
-  await page.goto(
-    SEARCH_URL,
-    {
-      waitUntil: "domcontentloaded",
-      timeout: 90000,
-    }
+  return (
+    reusableBlankPage ||
+    (await context.newPage())
   );
-
-  return page;
 }
 
 async function dismissCommonPopups(page) {
@@ -327,28 +400,16 @@ async function waitForStableResultsCount(
 async function extractCount(page) {
   await page.bringToFront();
 
-  if (
-    !isCrexiSearchPage(
-      page.url()
-    )
-  ) {
-    await page.goto(
-      SEARCH_URL,
-      {
-        waitUntil:
-          "domcontentloaded",
-
-        timeout: 90000,
-      }
-    );
-  } else {
-    await page.reload({
-      waitUntil:
-        "domcontentloaded",
-
+  // Always navigate to the configured URL rather than reloading
+  // whatever the tab happens to show. A reload preserves any
+  // filters a human applied to that tab.
+  await page.goto(
+    SEARCH_URL,
+    {
+      waitUntil: "domcontentloaded",
       timeout: 90000,
-    });
-  }
+    }
+  );
 
   await dismissCommonPopups(
     page
@@ -359,17 +420,37 @@ async function extractCount(page) {
       page
     );
 
+  // Crexi can redirect or rewrite filters after load, so verify
+  // the page that produced the count is still the configured
+  // search before trusting the number.
+  const finalUrl = page.url();
+
+  if (!isConfiguredSearchPage(finalUrl)) {
+    throw new Error(
+      "Crexi did not stay on the configured saved search. " +
+        `Expected filters: ${EXPECTED_FINGERPRINT}. ` +
+        `Actual filters: ${
+          searchFingerprint(finalUrl) || finalUrl
+        }`
+    );
+  }
+
   if (!candidate) {
     throw new Error(
       "Could not find a stable Crexi results count " +
         "in the top-left search results header. " +
-        `Current page: ${page.url()}`
+        `Current page: ${finalUrl}`
     );
   }
 
   console.log(
     "Selected Crexi results count:",
     candidate
+  );
+
+  console.log(
+    "Verified search URL:",
+    finalUrl
   );
 
   return candidate.value;

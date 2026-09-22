@@ -59,6 +59,41 @@ Valid metric keys:
 - `trinity_listing_count`
 - `five_year_treasury`
 
+## The tracked Crexi search
+
+`CREXI_SAVED_SEARCH_URL` in `crexi-collector/.env` must be:
+
+```text
+https://www.crexi.com/search?tableView=true&tenancy.tenancyType_value=Single&searchAttributes.status_tree_Active=&financials.capRatePercent_min=2&searchType=Sales&sorting=listingAttributes.dateActivated_desc_0&showMap=false
+```
+
+That is saved search `2165339` (all active single-tenant sales listings at a 2%+ cap rate). The collector builds a fingerprint from this URL's filter parameters — ignoring cosmetic ones such as `tableView`, `showMap`, `sorting` and `savedSearchId` — and refuses to record a count from a page whose filters do not match.
+
+**Do not leave a different Crexi saved search open in the collector's Chrome profile.** Before the URL check existed, the collector reused any open `crexi.com/search` tab and merely reloaded it. On 2026-09-16 a QSR/Fast Food saved search was opened in that window and left there, so every run from 2026-09-17 to 2026-09-22 recorded roughly 870 QSR listings instead of roughly 9,500 single-tenant listings. Those six days were reconstructed by interpolation and carry the source `crexi_backfill_estimate`.
+
+## Guardrails
+
+- The collector always navigates to `CREXI_SAVED_SEARCH_URL`; it never reloads whatever the tab was showing.
+- After the page settles, the collector re-checks the final URL's filters and fails the run if they drifted.
+- `/api/market-statistics/ingest` rejects a count that differs from the last recorded value by more than 25% and records it as a failed attempt, so the dashboard holds the last good value and shows its age. Send `"confirmLargeChange": true` to override when a jump is genuinely real.
+
+## Correcting history
+
+`/api/market-statistics/correct` overwrites specific days. It requires the ingest secret and an explicit `source` per entry:
+
+```json
+{
+  "entries": [
+    {
+      "metricKey": "crexi_listing_count",
+      "value": 9473,
+      "capturedAt": "2026-09-17T14:00:19.737Z",
+      "source": "crexi_backfill_estimate"
+    }
+  ]
+}
+```
+
 ## Operational behavior
 
 - Status (July 2026): the Windows Task Scheduler job is running successfully on schedule with no manual intervention required.

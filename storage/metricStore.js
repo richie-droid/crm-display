@@ -88,6 +88,7 @@ function saveSnapshot({
   value,
   capturedAt,
   source = "unknown",
+  replace = false,
 }) {
   if (!metricKey) {
     throw new Error("metricKey is required");
@@ -118,6 +119,22 @@ function saveSnapshot({
 
   if (existingIndex >= 0) {
     const existing = store.snapshots[existingIndex];
+
+    // An explicit correction always wins, including over a value
+    // that was captured live. Used to repair days where the
+    // collector recorded the wrong Crexi search.
+    if (replace) {
+      store.snapshots[existingIndex] = snapshot;
+
+      store.snapshots.sort(
+        (a, b) =>
+          new Date(a.capturedAt) -
+          new Date(b.capturedAt)
+      );
+
+      writeStore(store);
+      return snapshot;
+    }
 
     const incomingIsHistorical =
       isHistoricalSource(source);

@@ -59,13 +59,49 @@ const {
   getHomeStretchAdjustmentsData,
   saveHomeStretchAdjustments,
 } = require("./storage/homeStretchAdjustments");
-const { saveSnapshot, saveAttempt } = require("./storage/metricStore");
+const {
+  saveSnapshot,
+  saveAttempt,
+  getLatest,
+} = require("./storage/metricStore");
 const { seedMetricHistory } = require("./storage/seedMetricHistory");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DAILY_REFRESH_MS = 24 * 60 * 60 * 1000;
 const allowedIngestMetrics = new Set([METRICS.CREXI]);
+
+// An ingested count more than this far from the last good value is
+// almost certainly a different Crexi search rather than real market
+// movement. In September 2026 an unrelated saved search left open in
+// the collector's browser pushed the count from ~9,450 to ~870 and
+// the dashboard plotted it for six days without complaint.
+const MAX_INGEST_DRIFT_RATIO = 0.25;
+
+function implausibleDrift(metricKey, value) {
+  const latest = getLatest(metricKey);
+
+  if (!latest || !Number.isFinite(latest.value) || latest.value <= 0) {
+    return null;
+  }
+
+  const drift =
+    Math.abs(value - latest.value) / latest.value;
+
+  if (drift <= MAX_INGEST_DRIFT_RATIO) {
+    return null;
+  }
+
+  return (
+    `Rejected ${metricKey} value ${value}: it differs from the last ` +
+    `recorded value (${latest.value} on ` +
+    `${latest.capturedAt.slice(0, 10)}) by ` +
+    `${Math.round(drift * 100)}%, above the ` +
+    `${Math.round(MAX_INGEST_DRIFT_RATIO * 100)}% limit. This usually ` +
+    `means the collector read the wrong Crexi search. If the change is ` +
+    `real, re-send with "confirmLargeChange": true.`
+  );
+}
 
 app.use(express.json({ limit: "50kb" }));
 
@@ -323,6 +359,7 @@ app.post(
         capturedAt,
         status = "success",
         errorMessage,
+        confirmLargeChange = false,
       } = req.body || {};
 
       if (!allowedIngestMetrics.has(metricKey)) {
@@ -357,6 +394,28 @@ app.post(
         });
       }
 
+      if (!confirmLargeChange) {
+        const driftMessage = implausibleDrift(
+          metricKey,
+          Number(value)
+        );
+
+        if (driftMessage) {
+          saveAttempt({
+            metricKey,
+            status: "failed",
+            attemptedAt: capturedAt,
+            errorMessage: driftMessage,
+          });
+
+          return res.status(409).json({
+            ok: false,
+            message: driftMessage,
+            latestValuePreserved: true,
+          });
+        }
+      }
+
       const snapshot = saveSnapshot({
         metricKey,
         value: Number(value),
@@ -374,6 +433,74 @@ app.post(
         ok: true,
         snapshot,
       });
+    } catch (error) {
+      res.status(400).json({
+        ok: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Overwrites specific days for a metric. Used to repair history
+// after the collector recorded the wrong source -- e.g. the
+// 2026-09-17..2026-09-22 Crexi days that came from an unrelated
+// saved search. Corrections carry their own source label so the
+// reconstructed days stay distinguishable from observed ones.
+app.post(
+  "/api/market-statistics/correct",
+  requireIngestSecret,
+  (req, res) => {
+    try {
+      const entries = Array.isArray(req.body?.entries)
+        ? req.body.entries
+        : [];
+
+      if (!entries.length) {
+        return res.status(400).json({
+          ok: false,
+          message: "entries array is required",
+        });
+      }
+
+      const applied = [];
+
+      for (const entry of entries) {
+        const { metricKey, value, capturedAt, source } = entry || {};
+
+        if (!allowedIngestMetrics.has(metricKey)) {
+          return res.status(400).json({
+            ok: false,
+            message: `Metric is not correctable: ${metricKey}`,
+          });
+        }
+
+        if (!Number.isFinite(Number(value)) || Number(value) < 0) {
+          return res.status(400).json({
+            ok: false,
+            message: `Invalid value for ${capturedAt}: ${value}`,
+          });
+        }
+
+        if (!source) {
+          return res.status(400).json({
+            ok: false,
+            message: "Each correction must declare a source",
+          });
+        }
+
+        applied.push(
+          saveSnapshot({
+            metricKey,
+            value: Number(value),
+            capturedAt,
+            source,
+            replace: true,
+          })
+        );
+      }
+
+      res.json({ ok: true, corrected: applied.length, applied });
     } catch (error) {
       res.status(400).json({
         ok: false,
