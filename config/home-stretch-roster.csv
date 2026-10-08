@@ -1,26 +1,26 @@
-salesforce_name,display_name,team,handicap
-Cody Crist,Cody,Team Rachel,0.75
-Eric Johnson,New Eric,Team Rachel,1
-Tara Emerald,Tara,Team Rachel,1
-Isaac Sanchez,Isaac,Team Rachel,1
-Matt Davis,Matt,Team Phoebe,0.9
-Gleb Sonkin,Gleb,Team Phoebe,1
-Justin Dillon,JD,Team Phoebe,1
-Jacob Mace,Mace,Team Phoebe,1
-Chance Hales,Chance,Team Joey,1
-Cale Powers,Cale,Team Joey,1
-Matthew Simmons,Simmons,Team Joey,1
-Ty Borron,Ty,Team Joey,1
-Austin Walsh,Austin,Team Monica,1
-Gunnar Edlund,Gunnar,Team Monica,1
-Hank Dickerson,Hank,Team Monica,1
-Trevor Short,Trevor,Team Monica,1
-Branson Blackburn,Branson,Team Chandler,1
-Brad Motley,Brad,Team Chandler,1
-Steelman Juarez,Steelman,Team Chandler,1
-Harrison Quinn,Harrison,Team Chandler,1
-Drew Duncan,Drew,Team Ross,1
-Eric Kelley,EK,Team Ross,1
-Vincent Ferro,Vincent,Team Ross,1
-Josiah Oduro,Josiah,Team Ross,1
-Hayden Halm,Hayden,Team Ross,1
+salesforce_name,display_name,team,handicap,broker_team
+Cody Crist,Cody,Team Rachel,0.75,T5
+Eric Johnson,New Eric,Team Rachel,1,
+Tara Emerald,Tara,Team Rachel,1,
+Isaac Sanchez,Isaac,Team Rachel,1,
+Matt Davis,Matt,Team Phoebe,0.9,T5
+Gleb Sonkin,Gleb,Team Phoebe,1,
+Justin Dillon,JD,Team Phoebe,1,QSR
+Jacob Mace,Mace,Team Phoebe,1,QSR
+Chance Hales,Chance,Team Joey,1,T5
+Cale Powers,Cale,Team Joey,1,MC$
+Matthew Simmons,Simmons,Team Joey,1,MC$
+Ty Borron,Ty,Team Joey,1,
+Austin Walsh,Austin,Team Monica,1,AG
+Gunnar Edlund,Gunnar,Team Monica,1,AG
+Hank Dickerson,Hank,Team Monica,1,
+Trevor Short,Trevor,Team Monica,1,
+Branson Blackburn,Branson,Team Chandler,1,T5
+Brad Motley,Brad,Team Chandler,1,Strad
+Steelman Juarez,Steelman,Team Chandler,1,Strad
+Harrison Quinn,Harrison,Team Chandler,1,
+Drew Duncan,Drew,Team Ross,1,QSR
+Eric Kelley,EK,Team Ross,1,T5
+Vincent Ferro,Vincent,Team Ross,1,
+Josiah Oduro,Josiah,Team Ross,1,
+Hayden Halm,Hayden,Team Ross,1,

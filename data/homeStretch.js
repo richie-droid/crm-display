@@ -144,6 +144,7 @@ function loadRoster() {
       salesforceName: row.salesforce_name,
       displayName: row.display_name || row.salesforce_name,
       team: row.team,
+      brokerTeam: row.broker_team || "",
       handicap: Number.isFinite(parsedHandicap) && parsedHandicap > 0 ? parsedHandicap : 1,
     };
     byName.set(normalizeName(entry.salesforceName), entry);
@@ -193,6 +194,7 @@ function createAgentState(rosterEntry) {
     salesforceName: rosterEntry.salesforceName,
     displayName: rosterEntry.displayName,
     team: rosterEntry.team,
+    brokerTeam: rosterEntry.brokerTeam,
     handicap: rosterEntry.handicap,
     counts: { calls: 0, proposals: 0, submittedLois: 0, listings: 0, acceptedLois: 0, contracts: 0 },
   };
@@ -253,7 +255,8 @@ async function fetchCompetitionRecords(token, window) {
   `;
 
   const submittedLoiSoql = `
-    SELECT Id, Name, TTL_Core__Offer_Date__c, Procuring_Agent__c, Procuring_Agent__r.Name
+    SELECT Id, Name, TTL_Core__Offer_Date__c, Procuring_Agent__c, Procuring_Agent__r.Name,
+           Lead_Agent__c
     FROM TTL_Core__Offer__c
     WHERE TTL_Core__Offer_Date__c >= ${rangeStart}
       AND TTL_Core__Offer_Date__c <= ${rangeEnd}
@@ -272,7 +275,8 @@ async function fetchCompetitionRecords(token, window) {
   const contractSoql = `
     SELECT Id, Name, Contract_Effective_Date__c,
            Primary_agent__c, Primary_agent__r.Name,
-           Intermediary_Agent__c, Intermediary_Agent__r.Name
+           Intermediary_Agent__c, Intermediary_Agent__r.Name,
+           Point_of_Contact__c, Point_of_Contact__r.Name
     FROM ContractNew__c
     WHERE Contract_Effective_Date__c >= ${rangeStart}
       AND Contract_Effective_Date__c <= ${rangeEnd}
@@ -308,7 +312,7 @@ async function fetchCompetitionRecords(token, window) {
     const result = await querySalesforceAll(
       token.instance_url,
       token.access_token,
-      `SELECT Id, Name, Procuring_Agent__c, Procuring_Agent__r.Name
+      `SELECT Id, Name, Procuring_Agent__c, Procuring_Agent__r.Name, Lead_Agent__c
        FROM TTL_Core__Offer__c
        WHERE Id IN (${ids})`
     );
@@ -333,7 +337,7 @@ async function fetchCompetitionRecords(token, window) {
   };
 }
 
-function applyEvent({ agents, unmatched, name, date, category, window }) {
+function applyEvent({ agents, unmatched, name, date, category, window, amount = 1 }) {
   const key = normalizeName(name);
   const agent = agents.get(key);
   if (!agent) {
@@ -342,8 +346,73 @@ function applyEvent({ agents, unmatched, name, date, category, window }) {
   }
 
   if (inWindow(date, { start: window.start, end: window.dataThrough })) {
-    addCount(agent, category);
+    addCount(agent, category, amount);
   }
+}
+
+// Point of Contact splits: a Point of Contact who is a broker-team mate of the credited agent shares
+// that credit 50/50. Offers compare Procuring Agent to the Offer's Point of Contact (free-text name);
+// contracts compare Primary / Intermediary to the Contract's Point of Contact. Splits never cross
+// broker teams (broker_team column in the roster CSV; blank = solo agent).
+function findAgent(agents, name) {
+  return name ? agents.get(normalizeName(name)) || null : null;
+}
+
+function sharesBrokerTeam(a, b) {
+  return Boolean(a && b && a.brokerTeam && a.brokerTeam === b.brokerTeam);
+}
+
+function resolveOfferShares(agents, procuringName, pocName) {
+  const solo = { shares: [{ name: procuringName, amount: 1 }] };
+  if (!pocName || !procuringName || normalizeName(pocName) === normalizeName(procuringName)) {
+    return solo;
+  }
+  if (sharesBrokerTeam(findAgent(agents, procuringName), findAgent(agents, pocName))) {
+    return {
+      split: true,
+      shares: [
+        { name: procuringName, amount: 0.5 },
+        { name: pocName, amount: 0.5 },
+      ],
+    };
+  }
+  return { ...solo, flag: "Point of Contact is not on the Procuring Agent's broker team - no split" };
+}
+
+function resolveContractShares(agents, primaryName, intermediaryName, pocName) {
+  const shares = [];
+  if (primaryName) shares.push({ name: primaryName, amount: 1 });
+  if (intermediaryName) shares.push({ name: intermediaryName, amount: 1 });
+
+  const primary = findAgent(agents, primaryName);
+  const intermediary = findAgent(agents, intermediaryName);
+
+  if (sharesBrokerTeam(primary, intermediary)) {
+    return { shares, flag: "Primary and Intermediary Agent are on the same broker team - no split" };
+  }
+
+  const pocKey = normalizeName(pocName);
+  if (!pocName || pocKey === normalizeName(primaryName) || pocKey === normalizeName(intermediaryName)) {
+    return { shares };
+  }
+
+  const poc = findAgent(agents, pocName);
+  const side = sharesBrokerTeam(primary, poc)
+    ? primaryName
+    : sharesBrokerTeam(intermediary, poc)
+      ? intermediaryName
+      : null;
+
+  if (!side) {
+    return {
+      shares,
+      flag: "Point of Contact is not on the Primary's or Intermediary's broker team - no split",
+    };
+  }
+
+  shares.find((share) => share.name === side).amount = 0.5;
+  shares.push({ name: pocName, amount: 0.5 });
+  return { split: true, shares };
 }
 
 function applyCalls({ agents, unmatched, calls, includedWeeks }) {
@@ -470,39 +539,67 @@ async function buildHomeStretch({ debug = false } = {}) {
     });
   }
 
+  const splits = [];
+  const splitFlags = [];
+
+  function applyResolved({ type, id, label, date, category, resolved, people }) {
+    for (const share of resolved.shares) {
+      applyEvent({ agents, unmatched, name: share.name, date, category, window, amount: share.amount });
+    }
+    const entry = {
+      type,
+      category,
+      id,
+      record: label,
+      date: String(date || "").slice(0, 10),
+      ...people,
+      shares: resolved.shares.map((share) => `${share.name}: ${share.amount}`),
+    };
+    if (resolved.split) splits.push(entry);
+    if (resolved.flag) splitFlags.push({ ...entry, flag: resolved.flag });
+  }
+
   for (const record of records.submittedLois) {
-    applyEvent({
-      agents,
-      unmatched,
-      name: getRelationshipName(record, "Procuring_Agent__r"),
+    const procuring = getRelationshipName(record, "Procuring_Agent__r");
+    const pointOfContact = getField(record, "Lead_Agent__c") || null;
+    applyResolved({
+      type: "offer",
+      id: record.Id,
+      label: record.Name,
       date: getField(record, "TTL_Core__Offer_Date__c"),
       category: "submittedLois",
-      window,
+      resolved: resolveOfferShares(agents, procuring, pointOfContact),
+      people: { procuring, pointOfContact },
     });
   }
 
   for (const record of records.lois) {
-    applyEvent({
-      agents,
-      unmatched,
-      name: getRelationshipName(record.offer, "Procuring_Agent__r"),
+    const procuring = getRelationshipName(record.offer, "Procuring_Agent__r");
+    const pointOfContact = getField(record.offer, "Lead_Agent__c") || null;
+    applyResolved({
+      type: "offer",
+      id: record.offerId,
+      label: getField(record.offer, "Name"),
       date: getField(record.history, "CreatedDate"),
       category: "acceptedLois",
-      window,
+      resolved: resolveOfferShares(agents, procuring, pointOfContact),
+      people: { procuring, pointOfContact },
     });
   }
 
   for (const record of records.contracts) {
-    const date = getField(record, "Contract_Effective_Date__c");
     const primary = getRelationshipName(record, "Primary_agent__r");
     const intermediary = getRelationshipName(record, "Intermediary_Agent__r");
-
-    if (primary) {
-      applyEvent({ agents, unmatched, name: primary, date, category: "contracts", window });
-    }
-    if (intermediary) {
-      applyEvent({ agents, unmatched, name: intermediary, date, category: "contracts", window });
-    }
+    const pointOfContact = getRelationshipName(record, "Point_of_Contact__r");
+    applyResolved({
+      type: "contract",
+      id: record.Id,
+      label: record.Name,
+      date: getField(record, "Contract_Effective_Date__c"),
+      category: "contracts",
+      resolved: resolveContractShares(agents, primary, intermediary, pointOfContact),
+      people: { primary, intermediary, pointOfContact },
+    });
   }
 
   applyCalls({ agents, unmatched, calls, includedWeeks: includedCallWeeks });
@@ -538,6 +635,8 @@ async function buildHomeStretch({ debug = false } = {}) {
         callRowsWithValues: calls.filter((row) => row.calls !== null).length,
       },
       unmatched,
+      splits,
+      splitFlags,
       agents: agentRows,
     };
   }
